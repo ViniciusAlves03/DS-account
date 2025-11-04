@@ -1,0 +1,834 @@
+openapi: 3.0.0
+info:
+  title: Account Service API
+  version: "1.0.0"
+  description: "Microsserviço para gerenciamento de contas de usuários, incluindo Admins, Holders (Titulares) e Dependents (Dependentes)."
+servers:
+  - url: http://localhost:3000/
+    description: Servidor de desenvolvimento local
+
+paths:
+  /v1/admins:
+    post:
+      tags:
+        - Admins
+      summary: Adicionar um novo Administrador
+      description: Cria um novo usuário do tipo Administrador no sistema.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminInput'
+      responses:
+        '201':
+          description: Administrador criado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '400':
+          description: Requisição inválida (ex: email já existe).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Erro interno do servidor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      tags:
+        - Admins
+      summary: Listar todos os Administradores
+      description: Retorna uma lista paginada de todos os usuários do tipo Administrador.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Número da página.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Quantidade de itens por página.
+      responses:
+        '200':
+          description: Lista de administradores retornada com sucesso.
+          headers:
+            X-Total-Count:
+              schema:
+                type: integer
+              description: Número total de administradores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Admin'
+
+  /v1/admins/{admin_id}:
+    get:
+      tags:
+        - Admins
+      summary: Obter Administrador por ID
+      description: Retorna os detalhes de um administrador específico.
+      parameters:
+        - name: admin_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '404':
+          description: Administrador não encontrado.
+    patch:
+      tags:
+        - Admins
+      summary: Atualizar um Administrador
+      description: Atualiza os dados de um administrador existente.
+      parameters:
+        - name: admin_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUpdate'
+      responses:
+        '200':
+          description: Administrador atualizado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '404':
+          description: Administrador não encontrado.
+
+  /v1/holders:
+    post:
+      tags:
+        - Holders
+      summary: Adicionar um novo Titular (Holder)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HolderInput'
+      responses:
+        '201':
+          description: Titular criado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holder'
+        '400':
+          description: Requisição inválida.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      tags:
+        - Holders
+      summary: Listar todos os Titulares (Holders)
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Holder'
+
+  /v1/holders/{holder_id}:
+    get:
+      tags:
+        - Holders
+      summary: Obter Titular por ID
+      parameters:
+        - name: holder_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holder'
+        '404':
+          description: Titular não encontrado.
+    patch:
+      tags:
+        - Holders
+      summary: Atualizar um Titular
+      parameters:
+        - name: holder_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HolderUpdate'
+      responses:
+        '200':
+          description: Titular atualizado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holder'
+        '404':
+          description: Titular não encontrado.
+    delete:
+      tags:
+        - Holders
+      summary: Remover um Titular
+      parameters:
+        - name: holder_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      responses:
+        '204':
+          description: Titular removido com sucesso.
+        '404':
+          description: Titular não encontrado.
+
+  /v1/holders/{holder_id}/dependents:
+    post:
+      tags:
+        - Holders
+      summary: Adicionar um Dependente a um Titular
+      parameters:
+        - name: holder_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DependentInput'
+      responses:
+        '201':
+          description: Dependente associado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dependent'
+        '404':
+          description: Titular não encontrado.
+
+  /v1/holders/{holder_id}/dependents/{dependent_id}:
+    patch:
+      tags:
+        - Holders
+      summary: Atualizar autorização do Dependente
+      description: Define se o dependente está autorizado pelo titular.
+      parameters:
+        - name: holder_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+        - name: dependent_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isAuthorized:
+                  type: boolean
+              required:
+                - isAuthorized
+      responses:
+        '200':
+          description: Autorização atualizada com sucesso.
+        '404':
+          description: Titular ou dependente não encontrado.
+    delete:
+      tags:
+        - Holders
+      summary: Desassociar um Dependente de um Titular
+      parameters:
+        - name: holder_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+        - name: dependent_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      responses:
+        '204':
+          description: Associação removida com sucesso.
+        '404':
+          description: Titular ou dependente não encontrado.
+
+  /v1/dependents:
+    get:
+      tags:
+        - Dependents
+      summary: Listar todos os Dependentes
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dependent'
+
+  /v1/dependents/{dependent_id}:
+    get:
+      tags:
+        - Dependents
+      summary: Obter Dependente por ID
+      parameters:
+        - name: dependent_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dependent'
+        '404':
+          description: Dependente não encontrado.
+    patch:
+      tags:
+        - Dependents
+      summary: Atualizar um Dependente
+      parameters:
+        - name: dependent_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DependentUpdate'
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dependent'
+        '404':
+          description: Dependente não encontrado.
+    delete:
+      tags:
+        - Dependents
+      summary: Remover um Dependente
+      parameters:
+        - name: dependent_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      responses:
+        '204':
+          description: Dependente removido com sucesso.
+        '404':
+          description: Dependente não encontrado.
+
+  /v1/users:
+    get:
+      tags:
+        - Users
+      summary: Listar todos os Usuários
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  /v1/users/{user_id}:
+    delete:
+      tags:
+        - Users
+      summary: Remover um Usuário
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      responses:
+        '204':
+          description: Usuário removido com sucesso.
+        '404':
+          description: Usuário não encontrado.
+
+  /v1/users/{user_id}/avatar:
+    put:
+      tags:
+        - Users
+      summary: Adicionar ou atualizar avatar do usuário
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Avatar salvo com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Image'
+    get:
+      tags:
+        - Users
+      summary: Obter avatar do usuário
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Avatar não encontrado.
+    delete:
+      tags:
+        - Users
+      summary: Remover avatar do usuário
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: mongoId
+      responses:
+        '204':
+          description: Avatar removido com sucesso.
+
+  /v1/auth:
+    post:
+      tags:
+        - Auth
+      summary: Autenticar usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '200':
+          description: Autenticação bem-sucedida.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auth'
+        '401':
+          description: Não autorizado.
+
+  /v1/auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Renovar token de acesso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                access_token:
+                  type: string
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token renovado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auth'
+        '401':
+          description: Token inválido.
+
+  /v1/auth/forgot:
+    post:
+      tags:
+        - Auth
+      summary: Solicitar recuperação de senha
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '226':
+          description: Se uma conta correspondente for encontrada, um email será enviado.
+
+  /v1/auth/password:
+    patch:
+      tags:
+        - Auth
+      summary: Alterar senha do usuário
+      description: Altera a senha usando a senha antiga ou um token de reset.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                old_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        '204':
+          description: Senha alterada com sucesso.
+        '400':
+          description: Requisição inválida.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: mongoId
+          readOnly: true
+        name:
+          type: string
+          example: "João da Silva"
+        birth_date:
+          type: string
+          format: date
+          example: "1990-01-25"
+        gender:
+          type: string
+          enum: [male, female]
+        phone_number:
+          type: string
+          example: "11987654321"
+        language:
+          type: string
+          enum: [pt-BR, en-US]
+        email:
+          type: string
+          format: email
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+        type:
+          type: string
+          readOnly: true
+          enum: [admin, holder, dependent]
+
+    Admin:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            total_holders:
+              type: integer
+              readOnly: true
+            total_admins:
+              type: integer
+              readOnly: true
+            total_dependents:
+              type: integer
+              readOnly: true
+
+    Holder:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            address:
+              $ref: '#/components/schemas/Address'
+            dependents:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dependent'
+              readOnly: true
+
+    Dependent:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            address:
+              $ref: '#/components/schemas/Address'
+            isAuthorized:
+              type: boolean
+              default: true
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        number:
+          type: string
+        complement:
+          type: string
+        district:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+          enum: [AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO]
+        zip_code:
+          type: string
+
+    Credentials:
+      type: object
+      properties:
+        login:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+        - login
+        - password
+
+    Auth:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+
+    Image:
+      type: object
+      properties:
+        id:
+          type: string
+          format: mongoId
+        content_type:
+          type: string
+        filename:
+          type: string
+        size:
+          type: string
+        download_link:
+          type: string
+          format: uri
+
+    # Schemas para Entradas (Request Bodies)
+    UserInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Maria Souza"
+        birth_date:
+          type: string
+          format: date
+          example: "1995-05-20"
+        gender:
+          type: string
+          enum: [male, female]
+        phone_number:
+          type: string
+        language:
+          type: string
+          enum: [pt-BR, en-US]
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+        - name
+        - birth_date
+        - gender
+        - email
+        - password
+
+    AdminInput:
+      allOf:
+        - $ref: '#/components/schemas/UserInput'
+
+    HolderInput:
+      allOf:
+        - $ref: '#/components/schemas/UserInput'
+        - type: object
+          properties:
+            address:
+              $ref: '#/components/schemas/Address'
+
+    DependentInput:
+      allOf:
+        - $ref: '#/components/schemas/UserInput'
+        - type: object
+          properties:
+            address:
+              $ref: '#/components/schemas/Address'
+          required:
+            - address
+
+    # Schemas para Atualizações (PATCH Bodies)
+    AdminUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female]
+        language:
+          type: string
+          enum: [pt-BR, en-US]
+
+    HolderUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female]
+        language:
+          type: string
+          enum: [pt-BR, en-US]
+        address:
+          $ref: '#/components/schemas/Address'
+
+    DependentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female]
+        language:
+          type: string
+          enum: [pt-BR, en-US]
+        address:
+          $ref: '#/components/schemas/Address'
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+        description:
+          type: string

@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:latest
+    container_name: exp-mongo
+    ports:
+      - "27017:27017"
+    restart: always
+    volumes:
+      - exp-mongo-data:/data/db
+    networks:
+      - exp-network
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: exp-rabbitmq
+    restart: always
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    networks:
+      - exp-network
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+volumes:
+  exp-mongo-data:
+    name: exp-mongo-data
+
+networks:
+  exp-network:
+    name: exp-network
+    driver: bridge

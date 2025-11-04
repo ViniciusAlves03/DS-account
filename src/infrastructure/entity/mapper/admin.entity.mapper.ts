@@ -1,0 +1,58 @@
+import { injectable } from 'inversify'
+import { IEntityMapper } from '../../port/entity.mapper.interface'
+import { Admin } from '../../../application/domain/model/admin'
+import { AdminEntity } from '../admin.entity'
+
+
+@injectable()
+export class AdminEntityMapper implements IEntityMapper<Admin, AdminEntity> {
+    public transform(item: any): any {
+        if (item instanceof Admin) return this.modelToModelEntity(item)
+        return this.jsonToModel(item) // json
+    }
+
+    public modelToModelEntity(item: Admin): AdminEntity {
+        const result: AdminEntity = new AdminEntity()
+
+        if (item.id !== undefined) result.id = item.id
+        if (item.type !== undefined) result.type = item.type
+        if (item.name !== undefined) result.name = item.name
+        if (item.gender !== undefined) result.gender = item.gender
+        if (item.email !== undefined) result.email = item.email
+        if (item.password !== undefined) result.password = item.password
+        if (item.change_password !== undefined) result.change_password = item.change_password
+        if (item.check_email !== undefined) result.check_email = item.check_email
+        if (item.last_login !== undefined) result.last_login = item.last_login
+        if (item.birth_date !== undefined) result.birth_date = item.birth_date
+        if (item.phone_number !== undefined) result.phone_number = item.phone_number
+        if (item.language !== undefined) result.language = item.language
+        if (item.reset_password_token !== undefined) result.reset_password_token = item.reset_password_token
+        if (item.protected !== undefined) result.protected = item.protected
+
+        return result
+    }
+
+    public jsonToModel(json: any): Admin {
+        const result: Admin = new Admin()
+        if (!json) return result
+
+        if (json.id !== undefined) result.id = json.id
+        if (json.created_at !== undefined) result.created_at = json.created_at
+        if (json.updated_at !== undefined) result.updated_at = json.updated_at
+        if (json.type !== undefined) result.type = json.type
+        if (json.name !== undefined) result.name = json.name
+        if (json.gender !== undefined) result.gender = json.gender
+        if (json.email !== undefined) result.email = json.email
+        if (json.password !== undefined) result.password = json.password
+        if (json.change_password !== undefined) result.change_password = json.change_password
+        if (json.check_email !== undefined) result.check_email = json.check_email
+        if (json.last_login !== undefined) result.last_login = json.last_login
+        if (json.birth_date !== undefined) result.birth_date = json.birth_date
+        if (json.phone_number !== undefined) result.phone_number = json.phone_number
+        if (json.language !== undefined) result.language = json.language
+        if (json.reset_password_token !== undefined) result.reset_password_token = json.reset_password_token
+        if (json.protected !== undefined) result.protected = json.protected
+
+        return result
+    }
+}
