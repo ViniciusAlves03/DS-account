@@ -6,7 +6,6 @@ import { IQuery } from '../port/query.interface'
 import { Admin } from '../domain/model/admin'
 import { CreateAdminValidator } from '../domain/validator/create.admin.validator'
 import { UserType } from '../domain/utils/user.type'
-import { ObjectIdValidator } from '../domain/validator/object.id.validator'
 import { UpdateAdminValidator } from '../domain/validator/update.admin.validator'
 import { IUserRepository } from '../port/user.repository.interface'
 import { Strings } from '../../utils/strings'
@@ -32,7 +31,7 @@ export class AdminService implements IAdminService {
             const passwordWithoutCrypt: string = item.password!
 
             const exists = await this._userRepository.checkExists(item)
-            if (exists) throw new ConflictException(Strings.USER.EMAIL_ALREADY_REGISTERED)
+            if (exists) throw new ConflictException(Strings.USER.EMAIL_ALALREADY_REGISTERED)
 
             const result: Admin | undefined = await this._adminRepository.create(item)
             if (result) {
@@ -49,9 +48,10 @@ export class AdminService implements IAdminService {
                     new EmailWelcomeEvent(new Date(), mail), EmailWelcomeEvent.ROUTING_KEY
                 )
             }
-            return Promise.resolve(result)
-        } catch (err) {
-            return Promise.reject(err)
+
+            return result
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -61,11 +61,13 @@ export class AdminService implements IAdminService {
 
     public async getById(id: string, query: IQuery): Promise<Admin | undefined> {
         try {
-            ObjectIdValidator.validate(id)
+            // REATORADO: Validação de 'id' movida para o Controller.
+            // ObjectIdValidator.validate(id)
+
             query.addFilter({ _id: id, type: UserType.ADMIN })
             return this._adminRepository.findOne(query)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -74,7 +76,7 @@ export class AdminService implements IAdminService {
             UpdateAdminValidator.validate(item)
 
             const adminExists: boolean = await this._userRepository.checkExistsByIdAndType(item.id!, UserType.ADMIN)
-            if (!adminExists) return Promise.resolve(undefined)
+            if (!adminExists) return undefined
 
             if (item.email) {
                 const exists = await this._userRepository.checkExists(item)
@@ -82,8 +84,8 @@ export class AdminService implements IAdminService {
             }
             item.last_login = undefined
             return this._adminRepository.update(item)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -91,11 +93,11 @@ export class AdminService implements IAdminService {
         throw new Error('Unsupported feature!')
     }
 
-    public count(query: IQuery): Promise<number> {
+    public async count(query: IQuery): Promise<number> {
         try {
             return this._adminRepository.count(query)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 }

@@ -4,11 +4,12 @@ import { controller, httpDelete, httpGet, request, response } from 'inversify-ex
 import { Request, Response } from 'express'
 import { Identifier } from '../../di/identifiers'
 import { IUserService } from '../../application/port/user.service.interface'
-import { ApiExceptionManager } from '../exception/api.exception.manager'
 import { ILogger } from '../../utils/custom.logger'
 import { IQuery } from '../../application/port/query.interface'
 import { Query } from '../../infrastructure/repository/query/query'
 import { User } from '../../application/domain/model/user'
+import { ObjectIdValidator } from '../../application/domain/validator/object.id.validator'
+import { Strings } from '../../utils/strings'
 
 
 @controller('/v1/users')
@@ -21,29 +22,20 @@ export class UsersController {
 
     @httpGet('/')
     public async getAllUsers(@request() req: Request, @response() res: Response): Promise<Response> {
-        try {
-            const query: IQuery = new Query().fromJSON(req.query)
-            const result: Array<User> = await this._userService.getAll(query)
-            const count: number = await this._userService.count(query)
-            res.setHeader('X-Total-Count', count)
-            return res.status(HttpStatus.OK).send(this.toJSONView(result))
-        } catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code)
-                .send(handlerError.toJSON())
-        }
+        const query: IQuery = new Query().fromJSON(req.query)
+        const result: Array<User> = await this._userService.getAll(query)
+        const count: number = await this._userService.count(query)
+
+        res.setHeader('X-Total-Count', count)
+        return res.status(HttpStatus.OK).send(this.toJSONView(result))
     }
 
     @httpDelete('/:user_id')
     public async removeUser(@request() req: Request, @response() res: Response): Promise<Response> {
-        try {
-            await this._userService.remove(req.params.user_id)
-            return res.status(HttpStatus.NO_CONTENT).send()
-        } catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code)
-                .send(handlerError.toJSON())
-        }
+        ObjectIdValidator.validate(req.params.user_id, Strings.USER.PARAM_ID_NOT_VALID_FORMAT)
+
+        await this._userService.remove(req.params.user_id)
+        return res.status(HttpStatus.NO_CONTENT).send()
     }
 
     private toJSONView(user: User | Array<User>): object {

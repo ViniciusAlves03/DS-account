@@ -8,7 +8,6 @@ import { ConflictException } from '../../application/domain/exception/conflict.e
 import { Strings } from '../../utils/strings';
 import { IQuery } from "application/port/query.interface";
 import { CreateDependentValidator } from "../../application/domain/validator/create.dependent.validator";
-import { ObjectIdValidator } from '../../application/domain/validator/object.id.validator';
 import { UserType } from '../../application/domain/utils/user.type';
 import { IUserRepository } from 'application/port/user.repository.interface';
 import { IIntegrationEventRepository } from '../port/integration.event.repository.interface'
@@ -53,9 +52,10 @@ export class DependentService implements IDependentService {
                     new EmailWelcomeEvent(new Date(), mail), EmailWelcomeEvent.ROUTING_KEY
                 )
             }
-            return Promise.resolve(result)
-        } catch (err) {
-            return Promise.reject(err)
+
+            return result
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -65,11 +65,11 @@ export class DependentService implements IDependentService {
 
     public async getById(id: string, query: IQuery): Promise<Dependent | undefined> {
         try {
-            ObjectIdValidator.validate(id)
+            // ObjectIdValidator.validate(id) // <-- Movido para o Controller
             query.addFilter({ _id: id, type: UserType.DEPENDENT })
             return this._dependentRepository.findOne(query)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -78,40 +78,41 @@ export class DependentService implements IDependentService {
             UpdateDependentValidator.validate(item)
 
             const dependentExists: boolean = await this._userRepository.checkExistsByIdAndType(item.id!, UserType.DEPENDENT)
-            if (!dependentExists) return Promise.resolve(undefined)
+            if (!dependentExists) return undefined
 
             item.last_login = undefined
             return this._dependentRepository.update(item)
-        } catch (err) {
-            return Promise.reject(err);
+        } catch (err: unknown) {
+            throw err;
         }
     }
 
     public async remove(id: string): Promise<boolean> {
         try {
-            ObjectIdValidator.validate(id)
+            // ObjectIdValidator.validate(id) // <-- Movido para o Controller
+
             const dependent: Dependent | undefined = await this._dependentRepository.findOneById(id)
-            if (!dependent) return Promise.resolve(false)
+            if (!dependent) return false
 
             await this._holderRepository.removeDependentById(id)
 
             return this._dependentRepository.delete(id)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
     public async count(query: IQuery): Promise<number> {
         try {
             return this._userRepository.count(query)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
     public async addDependent(item: Dependent, holderid: string): Promise<Dependent | undefined> {
         try {
-            ObjectIdValidator.validate(holderid)
+            // ObjectIdValidator.validate(holderid) // <-- Movido para o Controller
 
             const holderExists: boolean =
                 await this._userRepository.checkExistsByIdAndType(holderid, UserType.HOLDER)
@@ -122,14 +123,15 @@ export class DependentService implements IDependentService {
                 )
             }
             return this.add(item)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
     public async updateAuthorization(dependentId: string, isAuthorized: boolean): Promise<Dependent | undefined> {
         try {
-            ObjectIdValidator.validate(dependentId, Strings.DEPENDENT.PARAM_ID_NOT_VALID_FORMAT)
+            // ObjectIdValidator.validate(dependentId, ...) // <-- Movido para o Controller
+
             BooleanValidator.validate(isAuthorized)
 
             const dependentExists: boolean =
@@ -141,8 +143,8 @@ export class DependentService implements IDependentService {
                 )
             }
             return this._dependentRepository.updateAuthorization(dependentId, isAuthorized)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 }

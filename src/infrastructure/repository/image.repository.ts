@@ -18,17 +18,23 @@ export class ImageRepository extends BaseRepository<Image, ImageEntity> implemen
         super(_imageModel, _imageMapper, _logger)
     }
 
-    public createOrUpdate(userId: string, item: Image): Promise<Image> {
-        const itemUp: any = this._imageMapper.transform(item)
-        return new Promise<Image>((resolve, reject) => {
-            this._imageModel.findOneAndUpdate({ user_id: userId }, itemUp, { new: true, upsert: true, setDefaultsOnInsert: true })
-                .exec()
-                .then((result: ImageEntity) => {
-                    if (!result) return resolve(result)
-                    return resolve(this._imageMapper.transform(result))
-                })
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+    public async createOrUpdate(userId: string, item: Image): Promise<Image> {
+        const itemUp: any = this._imageMapper.transform(item);
+        try {
+            const result: ImageEntity | null = await this._imageModel.findOneAndUpdate(
+                { user_id: userId },
+                itemUp,
+                { new: true, upsert: true, setDefaultsOnInsert: true }
+            ).exec();
+
+            if (!result) {
+                 throw new Error('Failed to create or update image.');
+            }
+
+            return this._imageMapper.transform(result);
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
     public findOneById(_id: string): Promise<Image | undefined> {

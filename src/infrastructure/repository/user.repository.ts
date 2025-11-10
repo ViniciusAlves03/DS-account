@@ -27,42 +27,48 @@ export class UserRepository extends BaseRepository<User, UserEntity> implements 
         return super.findOne(new Query().fromJSON({ filters: { _id } }))
     }
 
-    public checkExistsByIdAndType(_id: string, type: string): Promise<boolean> {
-        const query: Query = new Query().fromJSON({ filters: { _id, type } })
-        return new Promise<boolean>((resolve, reject) => {
-            super.findOne(query)
-                .then((result: User | undefined) => resolve(!!result))
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+    public async checkExistsByIdAndType(_id: string, type: string): Promise<boolean> {
+        const query: Query = new Query().fromJSON({ filters: { _id, type } });
+        try {
+            const result: User | undefined = await super.findOne(query);
+            return !!result;
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
     public async checkExists(user: User): Promise<boolean> {
-        const query: Query = new Query().fromJSON({ filters: { _id: { $ne: user.id }, email: user.email } })
-        return new Promise<boolean>((resolve, reject) => {
-            super.findOne(query)
-                .then((result: User | undefined) => resolve(!!result))
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+        const query: Query = new Query().fromJSON({ filters: { _id: { $ne: user.id }, email: user.email } });
+        try {
+            const result: User | undefined = await super.findOne(query);
+            return !!result;
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
-    public changePassword(userEmail: string, oldPassword: string, newPassword: string): Promise<User | undefined> {
-        return new Promise<User | undefined>((resolve, reject) => {
-            this._userModel.findOne({ email: userEmail })
-                .then((user: { password: string; change_password: boolean; }) => {
-                    if (!user) return resolve(undefined)
-                    if (!this.comparePasswords(oldPassword, user.password)) {
-                        return reject(new ChangePasswordException(
-                            Strings.USER.PASSWORD_NOT_MATCH,
-                            Strings.USER.PASSWORD_NOT_MATCH_DESCRIPTION
-                        ))
-                    }
-                    user.password = this.encryptPassword(newPassword)
-                    user.change_password = false
-                    this._userModel.findOneAndUpdate({ email: userEmail }, user, { new: true })
-                        .then(result => resolve(this._userMapper.transform(result)))
-                        .catch(err => reject(super.mongoDBErrorListener(err)))
-                }).catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+    public async changePassword(userEmail: string, oldPassword: string, newPassword: string): Promise<User | undefined> {
+        try {
+            const user: any = await this._userModel.findOne({ email: userEmail });
+            if (!user) return undefined;
+
+            if (!this.comparePasswords(oldPassword, user.password)) {
+                throw new ChangePasswordException(
+                    Strings.USER.PASSWORD_NOT_MATCH,
+                    Strings.USER.PASSWORD_NOT_MATCH_DESCRIPTION
+                );
+            }
+
+            user.password = this.encryptPassword(newPassword);
+            user.change_password = false;
+
+            const result = await this._userModel.findOneAndUpdate({ email: userEmail }, user, { new: true });
+
+            return this._userMapper.transform(result);
+        } catch (err: unknown) {
+            if (err instanceof ChangePasswordException) throw err;
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
     public encryptPassword(password: string): string {
@@ -74,22 +80,24 @@ export class UserRepository extends BaseRepository<User, UserEntity> implements 
         return bcrypt.compareSync(passwordOne, passwordTwo)
     }
 
-    public updateLastLogin(login: string): Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
-            this._userModel
-                .findOneAndUpdate({ email: login }, { last_login: new Date().toISOString() })
-                .then(result => resolve(!!result))
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+    public async updateLastLogin(login: string): Promise<boolean> {
+        try {
+            const result = await this._userModel
+                .findOneAndUpdate({ email: login }, { last_login: new Date().toISOString() });
+            return !!result;
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
-    public updateLastLoginById(id: string): Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
-            this._userModel
-                .findOneAndUpdate({ _id: id }, { last_login: new Date().toISOString() })
-                .then(result => resolve(!!result))
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+    public async updateLastLoginById(id: string): Promise<boolean> {
+        try {
+            const result = await this._userModel
+                .findOneAndUpdate({ _id: id }, { last_login: new Date().toISOString() });
+            return !!result;
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
     public countAdmins(): Promise<number> {

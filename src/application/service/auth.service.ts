@@ -32,9 +32,10 @@ export class AuthService implements IAuthService {
             CredentialsValidator.validate(credentials)
             const result: Auth | undefined = await this._authRepository.authenticate(credentials)
             if (result) await this._userRepository.updateLastLogin(credentials.login!!)
-            return Promise.resolve(result)
-        } catch (err) {
-            return Promise.reject(err)
+
+            return result
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -45,9 +46,10 @@ export class AuthService implements IAuthService {
             auth.user_id = payload.sub
             const result: Auth | undefined = await this._authRepository.refreshToken(auth)
             if (result) await this._userRepository.updateLastLoginById(payload.sub)
-            return Promise.resolve(result)
-        } catch (err) {
-            return Promise.reject(err)
+
+            return result
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -69,11 +71,12 @@ export class AuthService implements IAuthService {
                     new EmailResetPasswordEvent(new Date(), mail), EmailResetPasswordEvent.ROUTING_KEY
                 )
             }
-            return Promise.resolve({
+
+            return {
                 message: `If a matching account is found, an email has been sent to ${email} to allow you to reset your password.`
-            })
-        } catch (err) {
-            return Promise.reject(err)
+            }
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -81,21 +84,25 @@ export class AuthService implements IAuthService {
         try {
             EmailValidator.validate(email)
             const isValid: boolean = await this._authRepository.validateToken(token)
-            if (!isValid) return Promise.resolve(false)
+
+            if (!isValid) return false
+
             const payload = await this._authRepository.getTokenPayload(token)
             if (!payload.reset_password) {
                 ChangePasswordValidator.validate(email, old_password, new_password)
                 const resultChange = await this._userRepository.changePassword(email, old_password, new_password)
                 if (resultChange) await this._publishEmailUpdatePasswordEvent(resultChange)
-                return Promise.resolve(!!resultChange)
+
+                return !!resultChange
             }
             ResetPasswordValidator.validate(email, new_password)
             const encryptPassword: string = await this._userRepository.encryptPassword(new_password)
             const resultReset = await this._authRepository.updatePassword(payload.sub, email, encryptPassword, token)
             if (resultReset) await this._publishEmailUpdatePasswordEvent(resultReset)
-            return Promise.resolve(!!resultReset)
-        } catch (err) {
-            return Promise.reject(err)
+
+            return !!resultReset
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -112,9 +119,10 @@ export class AuthService implements IAuthService {
             await this._integrationEventRepo.publishEvent(
                 new EmailUpdatePasswordEvent(new Date(), mail), EmailUpdatePasswordEvent.ROUTING_KEY
             )
-            return Promise.resolve()
-        } catch (err) {
-            return Promise.reject(err)
+
+            return
+        } catch (err: unknown) {
+            throw err
         }
     }
 }

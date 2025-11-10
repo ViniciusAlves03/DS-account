@@ -5,12 +5,13 @@ import { IConnectionFactory, IDBOptions } from '../port/connection.factory.inter
 
 @injectable()
 export class ConnectionFactoryMongodb implements IConnectionFactory {
-    public createConnection(uri: string, options?: IDBOptions): Promise<Connection> {
-        return new Promise<Connection>((resolve, reject) => {
+    public async createConnection(uri: string, options?: IDBOptions): Promise<Connection> {
+        try {
             mongoose.set('strictQuery', true)
-            mongoose.connect(uri, options)
-                .then((result: Mongoose) => resolve(result.connection))
-                .catch(err => reject(err))
-        })
+            const result: Mongoose = await mongoose.connect(uri, options)
+            return result.connection
+        } catch (err: unknown) {
+            throw err
+        }
     }
 }

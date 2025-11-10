@@ -7,7 +7,6 @@ import { IQuery } from '../../application/port/query.interface';
 import { CreateHolderValidator } from '../../application/domain/validator/create.holder.validator';
 import { ConflictException } from '../../application/domain/exception/conflict.exception';
 import { Strings } from '../../utils/strings';
-import { ObjectIdValidator } from '../../application/domain/validator/object.id.validator';
 import { UserType } from '../../application/domain/utils/user.type';
 import { IUserRepository } from 'application/port/user.repository.interface';
 import { IIntegrationEventRepository } from '../port/integration.event.repository.interface'
@@ -50,9 +49,10 @@ export class HolderService implements IHolderService {
                     new EmailWelcomeEvent(new Date(), mail), EmailWelcomeEvent.ROUTING_KEY
                 )
             }
-            return Promise.resolve(result)
-        } catch (err) {
-            return Promise.reject(err);
+
+            return result
+        } catch (err: unknown) {
+            throw err;
         }
     }
 
@@ -62,11 +62,11 @@ export class HolderService implements IHolderService {
 
     public async getById(id: string, query: IQuery): Promise<Holder | undefined> {
         try {
-            ObjectIdValidator.validate(id)
+            // ObjectIdValidator.validate(id) // <-- Movido para o Controller
             query.addFilter({ _id: id, type: UserType.HOLDER })
             return this._holderRepository.findOne(query)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -75,38 +75,39 @@ export class HolderService implements IHolderService {
             UpdateHolderValidator.validate(item)
 
             const holderExists: boolean = await this._userRepository.checkExistsByIdAndType(item.id!, UserType.HOLDER)
-            if (!holderExists) return Promise.resolve(undefined)
+            if (!holderExists) return undefined
 
             item.last_login = undefined
             return this._holderRepository.update(item)
-        } catch (err) {
-            return Promise.reject(err);
+        } catch (err: unknown) {
+            throw err;
         }
     }
 
     public async remove(id: string): Promise<boolean> {
         try {
-            ObjectIdValidator.validate(id)
+            // ObjectIdValidator.validate(id) // <-- Movido para o Controller
             const holder: Holder | undefined = await this._holderRepository.findOneById(id)
-            if (!holder) return Promise.resolve(false)
+            if (!holder) return false
+
             return this._holderRepository.delete(id)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
     public async count(query: IQuery): Promise<number> {
         try {
             return this._holderRepository.count(query)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
     public async associateDependent(holderId: string, dependentId: string): Promise<boolean | undefined> {
         try {
-            ObjectIdValidator.validate(holderId, Strings.HOLDER.PARAM_ID_NOT_VALID_FORMAT)
-            ObjectIdValidator.validate(dependentId, Strings.DEPENDENT.PARAM_ID_NOT_VALID_FORMAT)
+            // ObjectIdValidator.validate(holderId, ...) // <-- Movido para o Controller
+            // ObjectIdValidator.validate(dependentId, ...) // <-- Movido para o Controller
 
             const holderExists: boolean =
                 await this._userRepository.checkExistsByIdAndType(holderId, UserType.HOLDER)
@@ -127,15 +128,15 @@ export class HolderService implements IHolderService {
             }
 
             return this._holderRepository.associateDependent(holderId, dependentId)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
     public async checkAssociation(holderId: string, dependentId: string): Promise<boolean | undefined> {
         try {
-            ObjectIdValidator.validate(holderId, Strings.HOLDER.PARAM_ID_NOT_VALID_FORMAT)
-            ObjectIdValidator.validate(dependentId, Strings.DEPENDENT.PARAM_ID_NOT_VALID_FORMAT)
+            // ObjectIdValidator.validate(holderId, ...) // <-- Movido para o Controller
+            // ObjectIdValidator.validate(dependentId, ...) // <-- Movido para o Controller
 
             const holderExists: boolean =
                 await this._userRepository.checkExistsByIdAndType(holderId, UserType.HOLDER)
@@ -165,15 +166,15 @@ export class HolderService implements IHolderService {
             }
 
             return checkAssociation
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
     public async removeAssociationWithDependent(holderId: string, dependentId: string): Promise<Holder | undefined> {
         try {
-            ObjectIdValidator.validate(holderId, Strings.HOLDER.PARAM_ID_NOT_VALID_FORMAT)
-            ObjectIdValidator.validate(dependentId, Strings.DEPENDENT.PARAM_ID_NOT_VALID_FORMAT)
+            // ObjectIdValidator.validate(holderId, ...) // <-- Movido para o Controller
+            // ObjectIdValidator.validate(dependentId, ...) // <-- Movido para o Controller
 
             const holderExists: boolean =
                 await this._userRepository.checkExistsByIdAndType(holderId, UserType.HOLDER)
@@ -203,8 +204,8 @@ export class HolderService implements IHolderService {
             }
 
             return this._holderRepository.removeAssociationDependentById(holderId, dependentId)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 }

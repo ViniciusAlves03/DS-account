@@ -29,60 +29,67 @@ export class DependentRepository extends BaseRepository<Dependent, DependentEnti
         return super.create(item)
     }
 
-    public checkExists(users: Dependent | Array<Dependent>): Promise<boolean | ValidationException> {
-        const query: Query = new Query()
-        return new Promise<boolean | ValidationException>((resolve, reject) => {
+    public async checkExists(users: Dependent | Array<Dependent>): Promise<boolean | ValidationException> {
+        try {
             if (users instanceof Array) {
-                if (users.length === 0) return resolve(false)
+                if (users.length === 0) return false;
 
-                let count = 0
-                const resultHolders: Array<string> = []
+                const checkPromises = users.map(dependent => {
+                    const query = new Query();
+                    if (dependent.id) {
+                        query.addFilter({ _id: dependent.id });
+                    }
+                    query.addFilter({ type: UserType.DEPENDENT });
 
-                users.forEach((dependent: Dependent) => {
-                    if (dependent.id) query.filters = { _id: dependent.id }
+                    return this.findOne(query);
+                });
 
-                    query.addFilter({ type: UserType.DEPENDENT })
+                const results = await Promise.all(checkPromises);
 
-                    this.findOne(query)
-                        .then(result => {
-                            count++
-                            if (!result && dependent.id) resultHolders.push(dependent.id)
-                            if (count === users.length) {
-                                if (resultHolders.length > 0) return resolve(new ValidationException(resultHolders.join(', ')))
-                                return resolve(true)
-                            }
-                        }).catch(err => reject(super.mongoDBErrorListener(err)))
-                })
+                const notFoundIds: string[] = [];
+                results.forEach((result, index) => {
+                    if (!result && users[index].id) {
+                        notFoundIds.push(users[index].id!);
+                    }
+                });
+
+                if (notFoundIds.length > 0) {
+                    return new ValidationException(notFoundIds.join(', '));
+                }
+                return true;
+
             } else {
-                if (users.id) query.addFilter({ _id: users.id })
-                query.addFilter({ type: UserType.DEPENDENT })
+                const query: Query = new Query();
+                if (users.id) query.addFilter({ _id: users.id });
+                query.addFilter({ type: UserType.DEPENDENT });
                 query.addFilter({ email: users.email });
-                this.findOne(query)
-                    .then(result => resolve(!!result))
-                    .catch(err => reject(super.mongoDBErrorListener(err)))
+
+                const result = await this.findOne(query);
+                return !!result;
             }
-        })
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
     public findOneById(dependentId: string): Promise<Dependent | undefined> {
         return super.findOne(new Query().fromJSON({ filters: { _id: dependentId, type: UserType.DEPENDENT } }))
     }
 
-    public updateAuthorization(dependentId: string, isAuthorized: boolean): Promise<Dependent | undefined> {
-        return new Promise<Dependent | undefined>((resolve, reject) => {
-            this._dependentModel.findOneAndUpdate(
+    public async updateAuthorization(dependentId: string, isAuthorized: boolean): Promise<Dependent | undefined> {
+        try {
+            const result = await this._dependentModel.findOneAndUpdate(
                 { _id: dependentId, type: UserType.DEPENDENT },
                 { $set: { isAuthorized: isAuthorized } },
                 { new: true }
-            )
-                .exec()
-                .then(result => {
-                    if (!result) {
-                        return resolve(undefined)
-                    }
-                    return resolve(this._dependentMapper.transform(result))
-                })
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+            ).exec();
+
+            if (!result) {
+                return undefined;
+            }
+            return this._dependentMapper.transform(result);
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 }

@@ -23,41 +23,26 @@ export class ConnectionMongodb implements IConnectionDB {
         return this._eventConnection
     }
 
-    /**
-     * Once connected, the reconnection policy is managed by the MongoDB driver,
-     * the values set in the environment variables or in the default file are
-     * used for the total number of retries and intervals between them.
-     *
-     * In case MongoDB is initially not available for a first connection,
-     * a new attempt will be made every 2 seconds. After the successful
-     * connection, reconnection will be automatically managed by the MongoDB driver.
-     *
-     * @return {Promise<void>}
-     */
     public async tryConnect(uri: string, options?: IDBOptions): Promise<void> {
-        const _this = this
-        await this._connectionFactory.createConnection(uri, options)
-            .then((connection: Connection) => {
-                this._connection = connection
-                this.connectionStatusListener(this._connection)
-                this._eventConnection.emit('connected')
-                this._logger.info('MongoDB connection established!')
-            })
-            .catch((err) => {
-                this._connection = undefined
-                this._eventConnection.emit('disconnected')
-                this._logger.warn(`Error trying to connect for the first time with mongoDB: ${err.message}`)
-                setTimeout(async () => {
-                    _this.tryConnect(uri, options).then()
-                }, 2000)
-            })
+        try {
+            const connection: Connection = await this._connectionFactory.createConnection(uri, options);
+
+            this._connection = connection;
+            this.connectionStatusListener(this._connection);
+            this._eventConnection.emit('connected');
+            this._logger.info('MongoDB connection established!');
+        } catch (err: unknown) {
+            const error = err as Error;
+            this._connection = undefined;
+            this._eventConnection.emit('disconnected');
+            this._logger.warn(`Error trying to connect for the first time with mongoDB: ${error.message}`);
+
+            setTimeout(() => {
+                this.tryConnect(uri, options);
+            }, 2000);
+        }
     }
 
-    /**
-     * Initializes connected and disconnected listeners.
-     *
-     * @param connection
-     */
     private connectionStatusListener(connection: Connection | undefined): void {
         if (!connection) {
             this._connection = undefined
@@ -79,11 +64,6 @@ export class ConnectionMongodb implements IConnectionDB {
         })
     }
 
-    /**
-     * Releases the resources.
-     *
-     * @return {Promise<void>}
-     */
     public async dispose(): Promise<void> {
         if (this._connection) await this._connection.close()
         this._connection = undefined

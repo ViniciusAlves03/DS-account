@@ -25,50 +25,57 @@ export class AdminRepository extends BaseRepository<Admin, AdminEntity> implemen
         return super.create(item)
     }
 
-    public find(query: IQuery): Promise<Array<Admin>> {
-        return new Promise<Array<Admin>>((resolve, reject) => {
-            super.find(query)
-                .then(async (result: Array<Admin>) => {
-                    for (let i = 0; i < result.length; i++) result[i] = await this.addReadOnlyInformation(result[i])
-                    resolve(result)
-                })
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+    public async find(query: IQuery): Promise<Array<Admin>> {
+        try {
+            const result: Array<Admin> = await super.find(query);
+
+            const enrichedResults = await Promise.all(
+                result.map(admin => this.addReadOnlyInformation(admin))
+            );
+
+            return enrichedResults;
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
-    public findOne(query: IQuery): Promise<Admin | undefined> {
-        return new Promise<Admin | undefined>((resolve, reject) => {
-            super.findOne(query)
-                .then(async (result: Admin | undefined) => {
-                    if (!result) return resolve(undefined)
-                    return resolve(await this.addReadOnlyInformation(result))
-                })
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+    public async findOne(query: IQuery): Promise<Admin | undefined> {
+        try {
+            const result: Admin | undefined = await super.findOne(query);
+
+            if (!result) return undefined;
+
+            return await this.addReadOnlyInformation(result);
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
-    public update(item: Admin): Promise<Admin | undefined> {
-        return new Promise<Admin | undefined>((resolve, reject) => {
-            super.update(item)
-                .then(async (result: Admin | undefined) => {
-                    if (!result) return resolve(undefined)
-                    return resolve(await this.addReadOnlyInformation(result))
-                })
-                .catch(err => reject(this.mongoDBErrorListener(err)))
-        })
+    public async update(item: Admin): Promise<Admin | undefined> {
+        try {
+            const result: Admin | undefined = await super.update(item);
+
+            if (!result) return undefined;
+
+            return await this.addReadOnlyInformation(result);
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
     private async addReadOnlyInformation(item: Admin): Promise<Admin> {
         if (item) {
-            try {
-                item.total_admins = await this._userRepository.countAdmins()
-                item.total_holders = await this._userRepository.countHolders()
-                item.total_dependents = await this._userRepository.countDependents()
-            } catch (err) {
-                return Promise.reject(err)
-            }
+            const [totalAdmins, totalHolders, totalDependents] = await Promise.all([
+                this._userRepository.countAdmins(),
+                this._userRepository.countHolders(),
+                this._userRepository.countDependents()
+            ]);
+
+            item.total_admins = totalAdmins;
+            item.total_holders = totalHolders;
+            item.total_dependents = totalDependents;
         }
 
-        return Promise.resolve(item)
+        return item;
     }
 }

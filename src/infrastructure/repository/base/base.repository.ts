@@ -19,105 +19,114 @@ export abstract class BaseRepository<T extends Entity, TModel> implements IRepos
     ) {
     }
 
-    public create(item: T): Promise<T | undefined> {
-        const itemNew: TModel = this.mapper.transform(item)
-        return new Promise<T | undefined>((resolve, reject) => {
-            this.Model.create(itemNew)
-                .then((result) => {
-                    if (!result) return resolve(undefined)
-                    return resolve(this.mapper.transform(result))
-                })
-                .catch(err => reject(this.mongoDBErrorListener(err)))
-        })
+    public async create(item: T): Promise<T | undefined> {
+        const itemNew: TModel = this.mapper.transform(item);
+        try {
+            const result = await this.Model.create(itemNew);
+            if (!result) return undefined;
+            return this.mapper.transform(result);
+        } catch (err: unknown) {
+            throw this.mongoDBErrorListener(err);
+        }
     }
 
-    public find(query: IQuery): Promise<Array<T>> {
+    public async find(query: IQuery): Promise<Array<T>> {
         const q: any = query.toJSON()
-        return new Promise<Array<T>>((resolve, reject) => {
-            this.Model.find(q.filters)
+        try {
+            const result: Array<TModel> = await this.Model.find(q.filters)
                 .select(q.fields)
                 .sort(q.ordination)
                 .skip(Number((q.pagination.limit * q.pagination.page) - q.pagination.limit))
                 .limit(Number(q.pagination.limit))
                 .exec()
-                .then((result: Array<TModel>) => resolve(result.map(item => this.mapper.transform(item))))
-                .catch(err => reject(this.mongoDBErrorListener(err)))
-        })
+
+            return result.map(item => this.mapper.transform(item))
+        } catch (err: unknown) {
+            throw this.mongoDBErrorListener(err)
+        }
     }
 
-    public findOne(query: IQuery): Promise<T | undefined> {
+    public async findOne(query: IQuery): Promise<T | undefined> {
         const q: any = query.toJSON()
-        return new Promise<T | undefined>((resolve, reject) => {
-            this.Model.findOne(q.filters)
+        try {
+            const result: TModel | null = await this.Model.findOne(q.filters)
                 .select(q.fields)
                 .exec()
-                .then((result: TModel) => {
-                    if (!result) return resolve(undefined)
-                    return resolve(this.mapper.transform(result))
-                })
-                .catch(err => reject(this.mongoDBErrorListener(err)))
-        })
+
+            if (!result) return undefined
+            return this.mapper.transform(result)
+        } catch (err: unknown) {
+            throw this.mongoDBErrorListener(err)
+        }
     }
 
-    public update(item: T): Promise<T | undefined> {
+    public async update(item: T): Promise<T | undefined> {
         const itemUp: any = this.mapper.transform(item)
-        return new Promise<T | undefined>((resolve, reject) => {
-            this.Model.findOneAndUpdate({ _id: itemUp.id }, itemUp, { new: true })
+        try {
+            const result: TModel | null = await this.Model.findOneAndUpdate({ _id: itemUp.id }, itemUp, { new: true })
                 .exec()
-                .then((result: TModel) => {
-                    if (!result) return resolve(undefined)
-                    return resolve(this.mapper.transform(result))
-                })
-                .catch(err => reject(this.mongoDBErrorListener(err)))
-        })
+
+            if (!result) return undefined
+            return this.mapper.transform(result)
+        } catch (err: unknown) {
+            throw this.mongoDBErrorListener(err)
+        }
     }
 
-    public delete(id: string): Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
-            this.Model.findOneAndDelete({ _id: id })
+    public async delete(id: string): Promise<boolean> {
+        try {
+            const result: TModel | null = await this.Model.findOneAndDelete({ _id: id })
                 .exec()
-                .then((result: TModel) => resolve(!!result))
-                .catch(err => reject(this.mongoDBErrorListener(err)))
-        })
+
+            return !!result
+        } catch (err: unknown) {
+            throw this.mongoDBErrorListener(err)
+        }
     }
 
-    public count(query?: IQuery): Promise<number> {
-        return new Promise<number>((resolve, reject) => {
-            this.Model.countDocuments(query ? query.toJSON().filters : {})
+    public async count(query?: IQuery): Promise<number> {
+        try {
+            const result: number = await this.Model.countDocuments(query ? query.toJSON().filters : {})
                 .exec()
-                .then(result => resolve(Number(result)))
-                .catch(err => reject(this.mongoDBErrorListener(err)))
-        })
+            return result
+        } catch (err: unknown) {
+            throw this.mongoDBErrorListener(err)
+        }
     }
 
-    protected mongoDBErrorListener(err: any): ValidationException | ConflictException | RepositoryException | undefined {
-        if (err && err.name) {
-            if (err.name === 'ValidationError') {
-                return new ValidationException('Required fields were not provided!', err.message)
-            } else if (err.name === 'CastError' || new RegExp(/(invalid format)/i).test(err)) {
-                if (err.name === 'CastError' && err.kind) {
-                    if (err.kind === 'date') {
+    protected mongoDBErrorListener(err: unknown): ValidationException | ConflictException | RepositoryException {
+        if (err && typeof err === 'object' && 'name' in err) {
+            const error = err as { name: string; message: string; code?: number; kind?: string; value?: any; path?: string; description?: string };
+
+            if (error.name === 'ValidationError') {
+                return new ValidationException('Required fields were not provided!', error.message)
+            } else if (error.name === 'CastError' || new RegExp(/(invalid format)/i).test(error.message)) {
+                if (error.name === 'CastError' && error.kind) {
+                    if (error.kind === 'date') {
                         return new ValidationException(
-                            Strings.ERROR_MESSAGE.DATE.INVALID_DATETIME_FORMAT.replace('{0}', err.value),
+                            Strings.ERROR_MESSAGE.DATE.INVALID_DATETIME_FORMAT.replace('{0}', error.value),
                             Strings.ERROR_MESSAGE.DATE.INVALID_DATETIME_FORMAT_DESC
                         )
-                    } else if (err.kind === 'ObjectId') {
+                    } else if (error.kind === 'ObjectId') {
                         return new ValidationException(Strings.ERROR_MESSAGE.VALIDATE.UUID_NOT_VALID_FORMAT,
                             Strings.ERROR_MESSAGE.VALIDATE.UUID_NOT_VALID_FORMAT_DESC)
-                    } else if (err.kind === 'Boolean') {
-                        return new ValidationException(Strings.ERROR_MESSAGE.VALIDATE.INVALID_BOOLEAN.replace('{0}', err.path))
-                    } else if (err.kind === 'Number') {
-                        return new ValidationException(Strings.ERROR_MESSAGE.VALIDATE.INVALID_NUMBER.replace('{0}', err.path))
+                    } else if (error.kind === 'Boolean') {
+                        return new ValidationException(Strings.ERROR_MESSAGE.VALIDATE.INVALID_BOOLEAN.replace('{0}', error.path))
+                    } else if (error.kind === 'Number') {
+                        return new ValidationException(Strings.ERROR_MESSAGE.VALIDATE.INVALID_NUMBER.replace('{0}', error.path))
                     }
                 }
-                return new ValidationException(`The value \'${err.value}\' of ${err.path} field is invalid.`)
-            } else if (err.name === 'MongoError' && err.code === 11000) {
+                return new ValidationException(`The value \'${error.value}\' of ${error.path} field is invalid.`)
+            } else if (error.name === 'MongoError' && error.code === 11000) {
                 return new ConflictException('A registration with the same unique data already exists!')
-            } else if (err.name === 'ObjectParameterError') {
+            } else if (error.name === 'ObjectParameterError') {
                 return new ValidationException('Invalid query parameters!')
             }
         }
-        return new RepositoryException(err && err.message ? err.message : Strings.ERROR_MESSAGE.INTERNAL_SERVER_ERROR,
-            err && err.description ? err.description : undefined)
+
+        const message = (err && typeof err === 'object' && 'message' in err) ? String((err as any).message) : Strings.ERROR_MESSAGE.INTERNAL_SERVER_ERROR;
+        const description = (err && typeof err === 'object' && 'description' in err) ? String((err as any).description) : undefined;
+
+        return new RepositoryException(message, description);
     }
 }

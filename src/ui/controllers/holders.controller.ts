@@ -5,13 +5,13 @@ import { Request, Response } from 'express'
 import { Identifier } from '../../di/identifiers'
 import { Holder } from '../../application/domain/model/holder'
 import { IHolderService } from '../../application/port/holder.service.interface'
-import { ApiExceptionManager } from '../exception/api.exception.manager'
 import { ILogger } from '../../utils/custom.logger'
 import { Query } from '../../infrastructure/repository/query/query'
 import { IQuery } from '../../application/port/query.interface'
 import { ApiException } from '../../ui/exception/api.exception'
 import { Strings } from '../../utils/strings'
 import { UserType } from '../../application/domain/utils/user.type'
+import { ObjectIdValidator } from '../../application/domain/validator/object.id.validator'
 
 
 @controller('/v1/holders')
@@ -24,77 +24,56 @@ export class HoldersController {
 
     @httpGet('/')
     public async getAllHolders(@request() req: Request, @response() res: Response): Promise<Response> {
-        try {
-            const query: IQuery = new Query().fromJSON(req.query)
-            query.addFilter({ type: UserType.HOLDER })
-            const result: Array<Holder> = await this._holderService.getAll(query)
-            const count: number = await this._holderService.count(query)
-            res.setHeader('X-Total-Count', count)
-            return res.status(HttpStatus.OK).send(this.toJSONView(result))
-        } catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code)
-                .send(handlerError.toJSON())
-        }
+        const query: IQuery = new Query().fromJSON(req.query)
+        query.addFilter({ type: UserType.HOLDER })
+        const result: Array<Holder> = await this._holderService.getAll(query)
+        const count: number = await this._holderService.count(query)
+
+        res.setHeader('X-Total-Count', count)
+        return res.status(HttpStatus.OK).send(this.toJSONView(result))
     }
 
     @httpPost('/')
     public async addHolder(@request() req: Request, @response() res: Response): Promise<Response> {
-        try {
-            const holder: Holder = new Holder().fromJSON({
-                ...req.body,
-                change_password: false,
-                email_verified: false
-            })
-            const result: Holder | undefined = await this._holderService.add(holder)
-            return res.status(HttpStatus.CREATED).send(this.toJSONView(result))
-        } catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code)
-                .send(handlerError.toJSON())
-        }
+        const holder: Holder = new Holder().fromJSON({
+            ...req.body,
+            change_password: false,
+            email_verified: false
+        })
+        const result: Holder | undefined = await this._holderService.add(holder)
+
+        return res.status(HttpStatus.CREATED).send(this.toJSONView(result))
     }
 
     @httpGet('/:holder_id')
     public async getHolderById(@request() req: Request, @response() res: Response): Promise<Response> {
-        try {
-            const query: IQuery = new Query().fromJSON(req.query)
-            const result: Holder | undefined = await this._holderService.getById(req.params.holder_id, query)
-            if (!result) return res.status(HttpStatus.NOT_FOUND).send(this.getMessageHolderNotFound())
-            return res.status(HttpStatus.OK).send(this.toJSONView(result))
-        } catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code)
-                .send(handlerError.toJSON())
-        }
+        ObjectIdValidator.validate(req.params.holder_id, Strings.HOLDER.PARAM_ID_NOT_VALID_FORMAT)
+
+        const query: IQuery = new Query().fromJSON(req.query)
+        const result: Holder | undefined = await this._holderService.getById(req.params.holder_id, query)
+
+        if (!result) return res.status(HttpStatus.NOT_FOUND).send(this.getMessageHolderNotFound())
+        return res.status(HttpStatus.OK).send(this.toJSONView(result))
     }
 
     @httpPatch('/:holder_id')
     public async updateHolder(@request() req: Request, @response() res: Response): Promise<Response> {
-        try {
-            const holder: Holder = new Holder().fromJSON(req.body)
-            holder.id = req.params.holder_id
-            const result: Holder | undefined = await this._holderService.update(holder)
-            if (!result) return res.status(HttpStatus.NOT_FOUND).send(this.getMessageHolderNotFound())
-            return res.status(HttpStatus.OK).send(this.toJSONView(result))
-        } catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code)
-                .send(handlerError.toJSON())
-        }
+        ObjectIdValidator.validate(req.params.holder_id, Strings.HOLDER.PARAM_ID_NOT_VALID_FORMAT)
+
+        const holder: Holder = new Holder().fromJSON(req.body)
+        holder.id = req.params.holder_id
+        const result: Holder | undefined = await this._holderService.update(holder)
+
+        if (!result) return res.status(HttpStatus.NOT_FOUND).send(this.getMessageHolderNotFound())
+        return res.status(HttpStatus.OK).send(this.toJSONView(result))
     }
 
     @httpDelete('/:holder_id')
     public async removeHolder(@request() req: Request, @response() res: Response): Promise<Response> {
-        try {
-            await this._holderService.remove(req.params.holder_id)
-            return res.status(HttpStatus.NO_CONTENT).send()
-        }
-        catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code)
-                .send(handlerError.toJSON())
-        }
+        ObjectIdValidator.validate(req.params.holder_id, Strings.HOLDER.PARAM_ID_NOT_VALID_FORMAT)
+
+        await this._holderService.remove(req.params.holder_id)
+        return res.status(HttpStatus.NO_CONTENT).send()
     }
 
     private toJSONView(holder: Holder | Array<Holder> | undefined): object {

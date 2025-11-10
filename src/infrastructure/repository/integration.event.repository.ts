@@ -17,25 +17,30 @@ export class IntegrationEventRepository implements IIntegrationEventRepository {
     ) {
     }
 
-    public create(item: any): Promise<IntegrationEvent<any>> {
-        return new Promise<IntegrationEvent<any>>((resolve, reject) => {
-            this._integrationEventModel.create(item)
-                .then(result => resolve(result))
-                .catch(err => reject(new RepositoryException(err.message, err.description)))
-        })
+    public async create(item: any): Promise<IntegrationEvent<any>> {
+        try {
+            const result = await this._integrationEventModel.create(item)
+            return result
+        } catch (err: unknown) {
+            const error = err as { message: string, description?: string }
+            throw new RepositoryException(error.message, error.description)
+        }
     }
 
-    public find(query: IQuery): Promise<Array<IntegrationEvent<any>>> {
+    public async find(query: IQuery): Promise<Array<IntegrationEvent<any>>> {
         query.addOrdination('created_at', 'desc')
 
         const q: any = query.toJSON()
-        return new Promise<Array<IntegrationEvent<any>>>((resolve, reject) => {
-            this._integrationEventModel.find(q.filters)
+        try {
+            const result = await this._integrationEventModel.find(q.filters)
                 .sort(q.ordination)
                 .exec()
-                .then(result => resolve(result))
-                .catch(err => reject(new RepositoryException(err.message, err.description)))
-        })
+
+            return result
+        } catch (err: unknown) {
+            const error = err as { message: string, description?: string }
+            throw new RepositoryException(error.message, error.description)
+        }
     }
 
     public findOne(query: IQuery): Promise<IntegrationEvent<any>> {
@@ -46,42 +51,47 @@ export class IntegrationEventRepository implements IIntegrationEventRepository {
         throw new Error('Not implemented!')
     }
 
-    public delete(id: string): Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
-            this._integrationEventModel.findOneAndDelete({ _id: id })
+    public async delete(id: string): Promise<boolean> {
+        try {
+            const result = await this._integrationEventModel.findOneAndDelete({ _id: id })
                 .exec()
-                .then(result => {
-                    if (!result) return resolve(false)
-                    resolve(true)
-                })
-                .catch(err => reject(new RepositoryException(err.message, err.description)))
-        })
+
+            return !!result
+        } catch (err: unknown) {
+            const error = err as { message: string, description?: string }
+            throw new RepositoryException(error.message, error.description)
+        }
     }
 
     public count(query: IQuery): Promise<number> {
         throw new Error('Not implemented!')
     }
 
-    public publishEvent(event: IntegrationEvent<any>, routingKey: string): void {
-        this._eventBus.publish(event, routingKey)
-            .then(() => this._logger
-                .info(`Event ${event.event_name} was successfully published on the message bus!`))
-            .catch(err => {
-                this._logger.warn(`Error publish event: ${event.event_name}. ${err.message}`)
-                integrationEvent()
-            })
+    public async publishEvent(event: IntegrationEvent<any>, routingKey: string): Promise<void> {
+        const integrationEvent = async () => {
+            try {
+                const saveEvent: any = event.toJSON()
+                await this.create({
+                    ...saveEvent,
+                    __routing_key: routingKey,
+                    __operation: 'publish'
+                })
+                this._logger.warn(`Event ${event.event_name} was saved in the database for a possible recovery.`)
+            } catch (dbErr: unknown) {
+                const error = dbErr as Error
+                this._logger.error(`There was an error trying to save the event ${event.event_name}.`
+                    .concat(`Error: ${error.message}. Event: ${JSON.stringify(event.toJSON())}`))
+            }
+        }
 
-        const integrationEvent = () => {
-            const saveEvent: any = event.toJSON()
-            this.create({
-                ...saveEvent,
-                __routing_key: routingKey,
-                __operation: 'publish'
-            })
-                .then(() => this._logger.warn(`Event ${event.event_name} was saved in the database for a possible recovery.`))
-                .catch(err => this._logger.error(`There was an error trying to save the event ${event.event_name}.`
-                    .concat(`Error: ${err.message}. Event: ${JSON.stringify(saveEvent)}`))
-                )
+        try {
+            await this._eventBus.publish(event, routingKey)
+            this._logger
+                .info(`Event ${event.event_name} was successfully published on the message bus!`)
+        } catch (publishErr: unknown) {
+            const error = publishErr as Error
+            this._logger.warn(`Error publish event: ${event.event_name}. ${error.message}`)
+            await integrationEvent()
         }
     }
 }

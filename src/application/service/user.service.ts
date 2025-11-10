@@ -4,7 +4,6 @@ import { User } from '../domain/model/user'
 import { Holder } from '../domain/model/holder'
 import { UserType } from '../domain/utils/user.type'
 import { Image } from '../domain/model/image'
-import { ObjectIdValidator } from '../domain/validator/object.id.validator'
 import { IQuery } from '../port/query.interface'
 import { IUserRepository } from '../port/user.repository.interface'
 import { IHolderRepository } from '../port/holder.repository.interface'
@@ -49,10 +48,10 @@ export class UserService implements IUserService {
 
     public async remove(id: string): Promise<boolean> {
         try {
-            ObjectIdValidator.validate(id)
+            // ObjectIdValidator.validate(id) // <-- Movido para o Controller
             let result: boolean = false
             const user: User | undefined = await this._userRepository.findOneById(id)
-            if (!user) return Promise.resolve(false)
+            if (!user) return false
 
             if (user.type === UserType.HOLDER) {
                 const holder: Holder | undefined = await this._holderRepository.findOneById(id)
@@ -76,17 +75,17 @@ export class UserService implements IUserService {
                     new UserDeleteEvent(new Date(), user), UserDeleteEvent.ROUTING_KEY
                 )
             }
-            return Promise.resolve(result)
-        } catch (err) {
-            return Promise.reject(err)
+            return result
+        } catch (err: unknown) {
+            throw err
         }
     }
 
-    public count(query: IQuery): Promise<number> {
+    public async count(query: IQuery): Promise<number> {
         try {
             return this._userRepository.count(query)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 
@@ -107,33 +106,34 @@ export class UserService implements IUserService {
 
             const result: Image = await this._imageRepo.createOrUpdate(item.user_id!, item)
             result.download_link = user.getAvatarLink()
-            return Promise.resolve(result)
-        } catch (err) {
-            return Promise.reject(err)
+            return result
+        } catch (err: unknown) {
+            throw err
         }
     }
 
     public async getAvatar(id: string): Promise<Image | undefined> {
         try {
-            ObjectIdValidator.validate(id)
+            // ObjectIdValidator.validate(id) // <-- Movido para o Controller
             const result: Image | undefined = await this._imageRepo.findOneByUser(id)
-            if (!result) return Promise.resolve(result)
+            if (!result) return result
             result.data = await this._fileRepo.getFileBuffer(result.file_id!)
-            return Promise.resolve(result)
-        } catch (err) {
-            return Promise.reject(err)
+            return result
+        } catch (err: unknown) {
+            throw err
         }
     }
 
     public async deleteAvatar(id: string): Promise<boolean> {
         try {
+            // 'id' aqui é o user_id, a validação deve ser feita no Controller
             const image: Image | undefined = await this._imageRepo.findOneByUser(id)
-            if (!image) return Promise.resolve(!!image)
+            if (!image) return !!image
             const isDeleted: boolean = await this._fileRepo.delete(image.file_id!)
-            if (!isDeleted) return Promise.resolve(isDeleted)
+            if (!isDeleted) return isDeleted
             return this._imageRepo.delete(image.id!)
-        } catch (err) {
-            return Promise.reject(err)
+        } catch (err: unknown) {
+            throw err
         }
     }
 }

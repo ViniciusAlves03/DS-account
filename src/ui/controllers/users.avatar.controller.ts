@@ -3,7 +3,6 @@ import { controller, httpDelete, httpGet, httpPut, request, response } from 'inv
 import { Request, Response } from 'express'
 import { inject } from 'inversify'
 import { Identifier } from '../../di/identifiers'
-import { ApiExceptionManager } from '../exception/api.exception.manager'
 import multer from 'multer'
 import { IQuery } from '../../application/port/query.interface'
 import { Query } from '../../infrastructure/repository/query/query'
@@ -13,6 +12,7 @@ import { IUserService } from '../../application/port/user.service.interface'
 import { Image } from '../../application/domain/model/image'
 import { ValidationException } from '../../application/domain/exception/validation.exception'
 import { Strings } from '../../utils/strings'
+import { ObjectIdValidator } from '../../application/domain/validator/object.id.validator'
 
 
 @controller('/v1/users/:user_id/avatar')
@@ -24,51 +24,45 @@ export class UsersAvatarController {
 
     @httpPut('/', multer().single('avatar'))
     public async saveOrUpdateAvatar(@request() req: any, @response() res: Response): Promise<Response> {
-        try {
-            if (!req.file) throw new ValidationException('Please submit a image with refer key named "avatar".')
-            const image: Image = new Image().fromJSON({
-                content_type: req.file.mimetype,
-                filename: req.file.originalname,
-                size: req.file.size,
-                data: Buffer.from(req.file.buffer),
-                user_id: req.params.user_id
-            })
-            const result: Image = await this._userService.addOrUpdateAvatar(image)
-            return res.status(HttpStatus.CREATED).send(this.toJSONView(result))
-        } catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code).send(handlerError.toJSON())
-        }
+        ObjectIdValidator.validate(req.params.user_id, Strings.USER.PARAM_ID_NOT_VALID_FORMAT)
+
+        if (!req.file) throw new ValidationException('Please submit a image with refer key named "avatar".')
+
+        const image: Image = new Image().fromJSON({
+            content_type: req.file.mimetype,
+            filename: req.file.originalname,
+            size: req.file.size,
+            data: Buffer.from(req.file.buffer),
+            user_id: req.params.user_id
+        })
+        const result: Image = await this._userService.addOrUpdateAvatar(image)
+        return res.status(HttpStatus.CREATED).send(this.toJSONView(result))
     }
 
     @httpGet('/')
     public async getAvatar(@request() req: Request, @response() res: Response): Promise<void | Response> {
-        try {
-            const query: IQuery = new Query().fromJSON(req.query)
-            query.addFilter({ 'file.filename': req.params.filename })
-            const result: Image | undefined = await this._userService.getAvatar(req.params.user_id)
-            if (!result) return res.status(HttpStatus.NOT_FOUND).send(this.getMessageNotFound())
+        ObjectIdValidator.validate(req.params.user_id, Strings.USER.PARAM_ID_NOT_VALID_FORMAT)
 
-            const read_stream = new stream.PassThrough()
-            res.set('Content-Disposition', 'inline')
-            res.set('Content-Type', result.content_type)
-            read_stream.pipe(res)
-            read_stream.end(result.data)
-        } catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code).send(handlerError.toJSON())
-        }
+        const query: IQuery = new Query().fromJSON(req.query)
+        query.addFilter({ 'file.filename': req.params.filename })
+
+        const result: Image | undefined = await this._userService.getAvatar(req.params.user_id)
+
+        if (!result) return res.status(HttpStatus.NOT_FOUND).send(this.getMessageNotFound())
+
+        const read_stream = new stream.PassThrough()
+        res.set('Content-Disposition', 'inline')
+        res.set('Content-Type', result.content_type)
+        read_stream.pipe(res)
+        read_stream.end(result.data)
     }
 
     @httpDelete('/')
     public async deleteImage(@request() req: Request, @response() res: Response): Promise<Response> {
-        try {
-            await this._userService.deleteAvatar(req.params.user_id)
-            return res.status(HttpStatus.NO_CONTENT).send()
-        } catch (err: any) {
-            const handlerError = ApiExceptionManager.build(err)
-            return res.status(handlerError.code).send(handlerError.toJSON())
-        }
+        ObjectIdValidator.validate(req.params.user_id, Strings.USER.PARAM_ID_NOT_VALID_FORMAT)
+
+        await this._userService.deleteAvatar(req.params.user_id)
+        return res.status(HttpStatus.NO_CONTENT).send()
     }
 
     private toJSONView(item: Image | Array<Image>): any | Array<any> {

@@ -16,15 +16,18 @@ const port = process.env.PORT_HTTP || Default.PORT_HTTP
 app.listen(port, () => {
     logger.debug(`Servidor HTTP rodando na porta ${port} 🚀`)
 
-    initListener()
-    backgroundServices.startServices()
-        .then(() => {
-            logger.debug('Serviços em background inicializados com sucesso...')
-        })
-        .catch(err => {
-            logger.error(err.message)
-            process.exit()
-        })
+    initListener();
+    (async () => {
+        try {
+            await backgroundServices.startServices();
+
+            logger.debug('Serviços em background inicializados com sucesso...');
+        } catch (err: unknown) {
+            const error = err as Error;
+            logger.error(error.message);
+            process.exit();
+        }
+    })()
 })
 
 

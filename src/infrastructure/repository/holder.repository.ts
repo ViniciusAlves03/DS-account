@@ -32,103 +32,114 @@ export class HolderRepository extends BaseRepository<Holder, HolderEntity> imple
         return super.create(item)
     }
 
-    public checkExists(users: Holder | Array<Holder>): Promise<boolean | ValidationException> {
-        const query: Query = new Query()
-        return new Promise<boolean | ValidationException>((resolve, reject) => {
+    public async checkExists(users: Holder | Array<Holder>): Promise<boolean | ValidationException> {
+        try {
             if (users instanceof Array) {
-                if (users.length === 0) return resolve(false)
+                if (users.length === 0) return false;
 
-                let count = 0
-                const resultHolders: Array<string> = []
+                const checkPromises = users.map(holder => {
+                    const query = new Query();
+                    if (holder.id) {
+                        query.addFilter({ _id: holder.id });
+                    }
+                    query.addFilter({ type: UserType.HOLDER });
+                    return this.findOne(query);
+                });
 
-                users.forEach((holder: Holder) => {
-                    if (holder.id) query.filters = { _id: holder.id }
+                const results = await Promise.all(checkPromises);
 
-                    query.addFilter({ type: UserType.HOLDER })
+                const notFoundIds: string[] = [];
+                results.forEach((result, index) => {
+                    if (!result && users[index].id) {
+                        notFoundIds.push(users[index].id!);
+                    }
+                });
 
-                    this.findOne(query)
-                        .then(result => {
-                            count++
-                            if (!result && holder.id) resultHolders.push(holder.id)
-                            if (count === users.length) {
-                                if (resultHolders.length > 0) return resolve(new ValidationException(resultHolders.join(', ')))
-                                return resolve(true)
-                            }
-                        }).catch(err => reject(super.mongoDBErrorListener(err)))
-                })
+                if (notFoundIds.length > 0) {
+                    return new ValidationException(notFoundIds.join(', '));
+                }
+                return true;
+
             } else {
-                if (users.id) query.addFilter({ _id: users.id })
-                query.addFilter({ type: UserType.HOLDER })
+                const query: Query = new Query();
+                if (users.id) query.addFilter({ _id: users.id });
+                query.addFilter({ type: UserType.HOLDER });
                 query.addFilter({ email: users.email });
-                this.findOne(query)
-                    .then(result => resolve(!!result))
-                    .catch(err => reject(super.mongoDBErrorListener(err)))
+
+                const result = await this.findOne(query);
+                return !!result;
             }
-        })
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
     public findOneById(holderId: string): Promise<Holder | undefined> {
         return super.findOne(new Query().fromJSON({ filters: { _id: holderId, type: UserType.HOLDER } }))
     }
 
-    public associateDependent(holderId: string, dependentId: string): Promise<boolean | undefined> {
-        return new Promise<boolean | undefined>((resolve, reject) => {
-            this._holderModel.findOneAndUpdate(
+    public async associateDependent(holderId: string, dependentId: string): Promise<boolean | undefined> {
+        try {
+            const result: HolderEntity | null = await this._holderModel.findOneAndUpdate(
                 { _id: holderId, type: UserType.HOLDER },
-                { $addToSet: { dependents: dependentId } })
-                .exec()
-                .then((result: HolderEntity) => {
-                    if (!result) return resolve(undefined)
-                    return resolve(this._holderMapper.transform(result))
-                })
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+                { $addToSet: { dependents: dependentId } }
+            ).exec();
+
+            if (!result) return undefined;
+
+            return true;
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
-    public checkDependentIsAssociated(holderId: string, dependentId: string): Promise<boolean> {
+    public async checkDependentIsAssociated(holderId: string, dependentId: string): Promise<boolean> {
         const query: IQuery = new Query().fromJSON({
             filters: { _id: holderId, type: UserType.HOLDER, dependents: dependentId }
-        })
-        return new Promise<boolean>((resolve, reject) => {
-            super.findOne(query)
-                .then(result => resolve(!!result))
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+        });
+
+        try {
+            const result = await super.findOne(query);
+            return !!result;
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
-    public updateAuthorizationDependent(dependentId: string, isAuthorized: boolean): Promise<boolean> {
-        return this._dependentRepository.updateAuthorization(dependentId, isAuthorized)
-            .then(updatedDependent => {
-                return !!updatedDependent;
-            })
-            .catch(err => {
-                throw super.mongoDBErrorListener(err);
-            });
+    public async updateAuthorizationDependent(dependentId: string, isAuthorized: boolean): Promise<boolean> {
+        try {
+            const updatedDependent = await this._dependentRepository.updateAuthorization(dependentId, isAuthorized);
+            return !!updatedDependent;
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
-    public removeAssociationDependentById(holderId: string, dependentId: string): Promise<Holder | undefined> {
-        return new Promise<Holder | undefined>((resolve, reject) => {
-            this._holderModel.findOneAndUpdate(
+    public async removeAssociationDependentById(holderId: string, dependentId: string): Promise<Holder | undefined> {
+        try {
+            const result: HolderEntity | null = await this._holderModel.findOneAndUpdate(
                 { _id: holderId, type: UserType.HOLDER },
-                { $pull: { dependents: dependentId } })
-                .exec()
-                .then((result: HolderEntity) => {
-                    if (!result) return resolve(undefined)
-                    return resolve(this._holderMapper.transform(result))
-                })
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+                { $pull: { dependents: dependentId } }
+            ).exec();
+
+            if (!result) return undefined;
+            return this._holderMapper.transform(result);
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 
-    public removeDependentById(dependentId: string): Promise<boolean | undefined> {
-        return new Promise<boolean>((resolve, reject) => {
-            this._holderModel.findOneAndUpdate(
+    public async removeDependentById(dependentId: string): Promise<boolean | undefined> {
+        try {
+            const result: HolderEntity | null = await this._holderModel.findOneAndUpdate(
                 { type: UserType.HOLDER, dependents: dependentId },
-                { $pull: { dependents: dependentId } })
-                .exec()
-                .then((result: HolderEntity) => resolve(!!result))
-                .catch(err => reject(super.mongoDBErrorListener(err)))
-        })
+                { $pull: { dependents: dependentId } }
+            ).exec();
+
+            return !!result;
+        } catch (err: unknown) {
+            throw super.mongoDBErrorListener(err);
+        }
     }
 }
 

@@ -75,15 +75,13 @@ export class FileRepository implements IFileRepository {
         });
     }
 
-    public delete(fileId: string): Promise<boolean> {
-        return new Promise<boolean>(async (resolve, reject) => {
-            try {
-                await this.bucket.delete(new ObjectId(fileId));
-                return resolve(true);
-            } catch (err: any) {
-                return reject(new RepositoryException('An error occurs when deleting the file.', err.message));
-            }
-        });
+    public async delete(fileId: string): Promise<boolean> {
+        try {
+            await this.bucket.delete(new ObjectId(fileId));
+            return true;
+        } catch (err: unknown) {
+            throw new RepositoryException('An error occurs when deleting the file.', (err as Error).message);
+        }
     }
 }
 

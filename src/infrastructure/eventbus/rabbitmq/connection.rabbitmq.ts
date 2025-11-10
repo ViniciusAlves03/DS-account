@@ -18,20 +18,16 @@ export class ConnectionRabbitMQ implements IConnectionEventBus {
         return this._connection && this._connection.isOpen
     }
 
-    public open(uri: string, options?: IEventBusOptions): Promise<IConnectionEventBus> {
-        return new Promise<IConnectionEventBus>((resolve, reject) => {
-            if (this._connection && this._connection.isOpen) return resolve(this._connection)
+    public async open(uri: string, options?: IEventBusOptions): Promise<IConnectionEventBus> {
+        if (this._connection && this._connection.isOpen) return this._connection
 
-            this._connectionFactory
-                .createConnection(uri, options)
-                .then(connection => {
-                    this._connection = connection
-                    return resolve(this._connection)
-                })
-                .catch(err => {
-                    return reject(err)
-                })
-        })
+        try {
+            const connection = await this._connectionFactory.createConnection(uri, options)
+            this._connection = connection
+            return this._connection
+        } catch (err: unknown) {
+            throw err
+        }
     }
 
     public on(event: string, listener: (...args: any[]) => void): void {

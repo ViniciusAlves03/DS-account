@@ -38,120 +38,138 @@ export class AuthRepository extends BaseRepository<Auth, AuthEntity> implements 
         super(_authModel, _authMapper, _logger)
     }
 
-    public authenticate(credentials: Credentials): Promise<Auth | undefined> {
-        return new Promise<Auth | undefined>((resolve, reject) => {
-            this._userModel.findOne({ email: credentials.login })
-                .then(async user => {
-                    if (!user || !user.password ||
-                        !this._userRepo.comparePasswords(credentials.password!!, user.password)) {
-                        return reject(new AuthenticationException(
-                            'Authentication failed due to invalid authentication credentials.'))
-                    }
-                    const userRef: User = this._userMapper.transform(user)
-                    return resolve(await this.generateToken(userRef))
-                }).catch(err => reject(new RepositoryException(Strings.ERROR_MESSAGE.UNEXPECTED)))
-        })
+    public async authenticate(credentials: Credentials): Promise<Auth | undefined> {
+        try {
+            const user = await this._userModel.findOne({ email: credentials.login });
+
+            if (!user || !user.password ||
+                !this._userRepo.comparePasswords(credentials.password!!, user.password)) {
+                throw new AuthenticationException(
+                    'Authentication failed due to invalid authentication credentials.')
+            }
+
+            const userRef: User = this._userMapper.transform(user);
+            return await this.generateToken(userRef);
+        } catch (err: unknown) {
+            if (err instanceof AuthenticationException) throw err;
+
+            throw new RepositoryException(Strings.ERROR_MESSAGE.UNEXPECTED);
+        }
     }
 
-    public refreshToken(auth: Auth): Promise<Auth | undefined> {
-        return new Promise<Auth | undefined>((resolve, reject) => {
-            this._authModel.findOne({ user_id: auth.user_id, access_token: auth.access_token })
-                .then(async data => {
-                    if (!data) {
-                        return reject(new AuthenticationException('Access token invalid.',
-                            'A new authentication is required.'))
-                    }
-                    if (data.refresh_token.hash !== auth.refresh_token?.hash) {
-                        return reject(new AuthenticationException('Refresh token invalid.',
-                            'A new authentication is required.'))
-                    }
-                    if (await this.isRefreshTokenExpired(data.refresh_token)) {
-                        return reject(new AuthenticationException('Refresh token expired.',
-                            'A new authentication is required.'))
-                    }
-                    await this._authModel.findOneAndDelete({ _id: data.id })
-                    const user: User | undefined =
-                        await this._userRepo.findOne(new Query().fromJSON({ filters: { _id: auth.user_id } }))
-                    if (!user) return Promise.resolve(undefined)
-                    return resolve(await this.generateToken(user))
-                })
-        })
+    public async refreshToken(auth: Auth): Promise<Auth | undefined> {
+        try {
+            const data = await this._authModel.findOne({ user_id: auth.user_id, access_token: auth.access_token });
+
+            if (!data) {
+                throw new AuthenticationException('Access token invalid.',
+                    'A new authentication is required.');
+            }
+            if (data.refresh_token.hash !== auth.refresh_token?.hash) {
+                throw new AuthenticationException('Refresh token invalid.',
+                    'A new authentication is required.');
+            }
+            if (await this.isRefreshTokenExpired(data.refresh_token)) {
+                throw new AuthenticationException('Refresh token expired.',
+                    'A new authentication is ' +
+                    'required.');
+            }
+
+            await this._authModel.findOneAndDelete({ _id: data.id });
+
+            const user: User | undefined =
+                await this._userRepo.findOne(new Query().fromJSON({ filters: { _id: auth.user_id } }));
+
+            if (!user) return undefined;
+
+            return await this.generateToken(user);
+        } catch (err: unknown) {
+            if (err instanceof AuthenticationException) throw err;
+            throw new RepositoryException(Strings.ERROR_MESSAGE.UNEXPECTED, (err as Error).message);
+        }
     }
 
     public async generateToken(user: User): Promise<Auth | undefined> {
         try {
-            const access_token: string = await this.generateAccessToken(user)
-            const refresh_token: string = await this.generateRefreshToken(user)
-            const user_id: string = user.id!
+            const access_token: string = await this.generateAccessToken(user);
+            const refresh_token: string = await this.generateRefreshToken(user);
+            const user_id: string = user.id!;
 
             const auth: Auth = new Auth().fromJSON({
                 access_token,
                 refresh_token,
                 user_id
-            })
-            const result: Auth | undefined = await super.create(auth)
-            return Promise.resolve(result)
-        } catch (err) {
-            return Promise.reject(new RepositoryException(Strings.ERROR_MESSAGE.UNEXPECTED))
+            });
+
+            return await super.create(auth);
+        } catch (err: unknown) {
+            throw new RepositoryException(Strings.ERROR_MESSAGE.UNEXPECTED);
         }
     }
 
     public async resetPassword(_email: string): Promise<User> {
         try {
-            const user: User | undefined = await this._userRepo.findOne(new Query().fromJSON({ filters: { email: _email } }))
-            if (!user) return Promise.resolve(undefined!)
+            const user: User | undefined = await this._userRepo.findOne(new Query().fromJSON({ filters: { email: _email } }));
+
+            if (!user) return undefined!;
+
             const scopeLiterals = {
                 'admin': () => 'ad:rp',
                 'holder': () => 'ho:rp',
                 'dependent': () => 'dp:rp',
-            }
-            const token: string = await this.generateResetPasswordToken(user, scopeLiterals[user.type!]())
-            if (!token) return Promise.resolve(undefined!)
+            };
+
+            const token: string = await this.generateResetPasswordToken(user, scopeLiterals[user.type!]());
+            if (!token) return undefined!;
+
             const result: User =
                 await this._userModel.findOneAndUpdate(
                     { _id: user.id },
                     { reset_password_token: token },
-                    { new: true })
-            return Promise.resolve(this._userMapper.transform(result))
-        } catch (err) {
-            return Promise.reject(err)
+                    { new: true });
+
+            return this._userMapper.transform(result);
+        } catch (err: unknown) {
+            throw err;
         }
     }
 
     public async updatePassword(userId: string, userEmail: string, new_password: string, token: string): Promise<User> {
-        return new Promise<User>((resolve, reject) => {
-            this._userModel.findOneAndUpdate(
-                { _id: userId, email: userEmail, reset_password_token: token },
-                { password: new_password, $unset: { reset_password_token: 1 } })
-                .then(result => {
-                    if (!result) {
-                        return reject(new AuthenticationException('Invalid password reset token!',
-                            'Token probably expired or already used. You can only use the reset token once' +
-                            ' while it is within its validity period.'))
-                    }
-                    return resolve(this._userMapper.transform(result))
-                })
-        })
-    }
-
-    public validateToken(token: string): Promise<boolean> {
         try {
-            const public_key = readFileSync(`${process.env.JWT_PUBLIC_KEY_PATH}`, 'utf-8')
-            const result = jwt.verify(token, public_key, { algorithms: ['RS256'] })
-            return Promise.resolve(!!result)
-        } catch (err) {
-            return Promise.reject(new AuthenticationException('Invalid password reset token!',
-                'Token probably expired or already used. You can only use the reset token once while it is within its ' +
-                'validity period.'))
+            const result = await this._userModel.findOneAndUpdate(
+                { _id: userId, email: userEmail, reset_password_token: token },
+                { password: new_password, $unset: { reset_password_token: 1 } });
+
+            if (!result) {
+                throw new AuthenticationException('Invalid password reset token!',
+                    'Token probably expired or already used. You can only use the reset token once' +
+                    ' while it is within its validity period.');
+            }
+            return this._userMapper.transform(result);
+        } catch (err: unknown) {
+            if (err instanceof AuthenticationException) throw err;
+            throw new RepositoryException(Strings.ERROR_MESSAGE.UNEXPECTED, (err as Error).message);
         }
     }
 
-    public getTokenPayload(token: string): Promise<any> {
+    public async validateToken(token: string): Promise<boolean> {
         try {
-            return Promise.resolve(jwt.decode(token))
-        } catch (err) {
-            return Promise.reject(new AuthenticationException('Could not complete change password request. ' +
-                'Please try again later.'))
+            const public_key = readFileSync(`${process.env.JWT_PUBLIC_KEY_PATH}`, 'utf-8');
+            const result = jwt.verify(token, public_key, { algorithms: ['RS256'] });
+            return !!result;
+        } catch (err: unknown) {
+            throw new AuthenticationException('Invalid password reset token!',
+                'Token probably expired or already used. You can only use the reset token once while it is within its ' +
+                'validity period.');
+        }
+    }
+
+    public async getTokenPayload(token: string): Promise<any> {
+        try {
+            return jwt.decode(token);
+        } catch (err: unknown) {
+            throw new AuthenticationException('Could not complete change password request. ' +
+                'Please try again later.');
         }
     }
 
@@ -167,7 +185,7 @@ export class AuthRepository extends BaseRepository<Auth, AuthEntity> implements 
                 headers.kid = consumerJwt.key;
             }
 
-            const private_key = readFileSync(`${process.env.JWT_PRIVATE_KEY_PATH}`, 'utf-8')
+            const private_key = readFileSync(`${process.env.JWT_PRIVATE_KEY_PATH}`, 'utf-8');
 
             const payload: object = {
                 sub: user.id,
@@ -177,12 +195,12 @@ export class AuthRepository extends BaseRepository<Auth, AuthEntity> implements 
                 scope: UsersScopes.getUserScopes(user.type!).join(' '),
                 check_email: user.check_email,
                 change_password: user.change_password
-            }
+            };
 
-            return Promise.resolve(jwt.sign(payload, private_key, { expiresIn: '8h', algorithm: 'RS256', header: headers }))
-        } catch (err) {
-            return Promise.reject(
-                new AuthenticationException('Authentication failed due to failure at generate the access token.'))
+            return jwt.sign(payload, private_key, { expiresIn: '8h', algorithm: 'RS256', header: headers });
+        } catch (err: unknown) {
+            if (err instanceof AuthenticationException) throw err;
+            throw new AuthenticationException('Authentication failed due to failure at generate the access token.');
         }
     }
 
@@ -196,7 +214,7 @@ export class AuthRepository extends BaseRepository<Auth, AuthEntity> implements 
 
     private async generateResetPasswordToken(user: User, userScope: string): Promise<string> {
         try {
-            const private_key = readFileSync(`${process.env.JWT_PRIVATE_KEY_PATH}`, 'utf-8')
+            const private_key = readFileSync(`${process.env.JWT_PRIVATE_KEY_PATH}`, 'utf-8');
             const payload: object = {
                 sub: user.id,
                 sub_type: user.type,
@@ -205,10 +223,11 @@ export class AuthRepository extends BaseRepository<Auth, AuthEntity> implements 
                 iat: Math.floor(Date.now() / 1000),
                 scope: userScope,
                 reset_password: true
-            }
-            return Promise.resolve(jwt.sign(payload, private_key, { expiresIn: '1h', algorithm: 'RS256' }))
-        } catch (err) {
-            return Promise.reject(err)
+            };
+
+            return jwt.sign(payload, private_key, { expiresIn: '1h', algorithm: 'RS256' });
+        } catch (err: unknown) {
+            throw err;
         }
     }
 
