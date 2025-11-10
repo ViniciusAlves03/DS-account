@@ -2,18 +2,18 @@ openapi: 3.0.0
 info:
   title: Account Service API
   version: "1.0.0"
-  description: "Microsserviço para gerenciamento de contas de usuários, incluindo Admins, Holders (Titulares) e Dependents (Dependentes)."
+  description: "Microservice for managing user accounts, including Admins, Holders, and Dependents."
 servers:
   - url: http://localhost:3000/
-    description: Servidor de desenvolvimento local
+    description: Local development server
 
 paths:
   /v1/admins:
     post:
       tags:
         - Admins
-      summary: Adicionar um novo Administrador
-      description: Cria um novo usuário do tipo Administrador no sistema.
+      summary: Add a new Administrator
+      description: Creates a new Administrator-type user in the system.
       requestBody:
         required: true
         content:
@@ -22,19 +22,19 @@ paths:
               $ref: '#/components/schemas/AdminInput'
       responses:
         '201':
-          description: Administrador criado com sucesso.
+          description: Administrator created successfully.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Admin'
         '400':
-          description: Requisição inválida (ex: email já existe).
+          description: Invalid request (e.g., email already exists).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
         '500':
-          description: Erro interno do servidor.
+          description: Internal server error.
           content:
             application/json:
               schema:
@@ -42,29 +42,29 @@ paths:
     get:
       tags:
         - Admins
-      summary: Listar todos os Administradores
-      description: Retorna uma lista paginada de todos os usuários do tipo Administrador.
+      summary: List all Administrators
+      description: Returns a paginated list of all Administrator-type users.
       parameters:
         - in: query
           name: page
           schema:
             type: integer
             default: 1
-          description: Número da página.
+          description: Page number.
         - in: query
           name: limit
           schema:
             type: integer
             default: 10
-          description: Quantidade de itens por página.
+          description: Number of items per page.
       responses:
         '200':
-          description: Lista de administradores retornada com sucesso.
+          description: List of administrators returned successfully.
           headers:
             X-Total-Count:
               schema:
                 type: integer
-              description: Número total de administradores.
+              description: Total number of administrators.
           content:
             application/json:
               schema:
@@ -76,8 +76,8 @@ paths:
     get:
       tags:
         - Admins
-      summary: Obter Administrador por ID
-      description: Retorna os detalhes de um administrador específico.
+      summary: Get Administrator by ID
+      description: Returns the details of a specific administrator.
       parameters:
         - name: admin_id
           in: path
@@ -87,18 +87,18 @@ paths:
             format: mongoId
       responses:
         '200':
-          description: Sucesso.
+          description: Success.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Admin'
         '404':
-          description: Administrador não encontrado.
+          description: Administrator not found.
     patch:
       tags:
         - Admins
-      summary: Atualizar um Administrador
-      description: Atualiza os dados de um administrador existente.
+      summary: Update an Administrator
+      description: Updates the data of an existing administrator.
       parameters:
         - name: admin_id
           in: path
@@ -114,19 +114,19 @@ paths:
               $ref: '#/components/schemas/AdminUpdate'
       responses:
         '200':
-          description: Administrador atualizado com sucesso.
+          description: Administrator updated successfully.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Admin'
         '404':
-          description: Administrador não encontrado.
+          description: Administrator not found.
 
   /v1/holders:
     post:
       tags:
         - Holders
-      summary: Adicionar um novo Titular (Holder)
+      summary: Add a new Holder
       requestBody:
         required: true
         content:
@@ -135,13 +135,13 @@ paths:
               $ref: '#/components/schemas/HolderInput'
       responses:
         '201':
-          description: Titular criado com sucesso.
+          description: Holder created successfully.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Holder'
         '400':
-          description: Requisição inválida.
+          description: Invalid request.
           content:
             application/json:
               schema:
@@ -149,10 +149,10 @@ paths:
     get:
       tags:
         - Holders
-      summary: Listar todos os Titulares (Holders)
+      summary: List all Holders
       responses:
         '200':
-          description: Sucesso.
+          description: Success.
           content:
             application/json:
               schema:
@@ -164,7 +164,7 @@ paths:
     get:
       tags:
         - Holders
-      summary: Obter Titular por ID
+      summary: Get Holder by ID
       parameters:
         - name: holder_id
           in: path
@@ -174,17 +174,17 @@ paths:
             format: mongoId
       responses:
         '200':
-          description: Sucesso.
+          description: Success.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Holder'
         '404':
-          description: Titular não encontrado.
+          description: Holder not found.
     patch:
       tags:
         - Holders
-      summary: Atualizar um Titular
+      summary: Update a Holder
       parameters:
         - name: holder_id
           in: path
@@ -200,17 +200,17 @@ paths:
               $ref: '#/components/schemas/HolderUpdate'
       responses:
         '200':
-          description: Titular atualizado com sucesso.
+          description: Holder updated successfully.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Holder'
         '404':
-          description: Titular não encontrado.
+          description: Holder not found.
     delete:
       tags:
         - Holders
-      summary: Remover um Titular
+      summary: Remove a Holder
       parameters:
         - name: holder_id
           in: path
@@ -220,15 +220,15 @@ paths:
             format: mongoId
       responses:
         '204':
-          description: Titular removido com sucesso.
+          description: Holder removed successfully.
         '404':
-          description: Titular não encontrado.
+          description: Holder not found.
 
   /v1/holders/{holder_id}/dependents:
     post:
       tags:
         - Holders
-      summary: Adicionar um Dependente a um Titular
+      summary: Add a Dependent to a Holder
       parameters:
         - name: holder_id
           in: path
@@ -244,20 +244,20 @@ paths:
               $ref: '#/components/schemas/DependentInput'
       responses:
         '201':
-          description: Dependente associado com sucesso.
+          description: Dependent associated successfully.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dependent'
         '404':
-          description: Titular não encontrado.
+          description: Holder not found.
 
   /v1/holders/{holder_id}/dependents/{dependent_id}:
     patch:
       tags:
         - Holders
-      summary: Atualizar autorização do Dependente
-      description: Define se o dependente está autorizado pelo titular.
+      summary: Update Dependent's authorization
+      description: Sets whether the dependent is authorized by the holder.
       parameters:
         - name: holder_id
           in: path
@@ -284,13 +284,13 @@ paths:
                 - isAuthorized
       responses:
         '200':
-          description: Autorização atualizada com sucesso.
+          description: Authorization updated successfully.
         '404':
-          description: Titular ou dependente não encontrado.
+          description: Holder or dependent not found.
     delete:
       tags:
         - Holders
-      summary: Desassociar um Dependente de um Titular
+      summary: Disassociate a Dependent from a Holder
       parameters:
         - name: holder_id
           in: path
@@ -306,18 +306,18 @@ paths:
             format: mongoId
       responses:
         '204':
-          description: Associação removida com sucesso.
+          description: Association removed successfully.
         '404':
-          description: Titular ou dependente não encontrado.
+          description: Holder or dependent not found.
 
   /v1/dependents:
     get:
       tags:
         - Dependents
-      summary: Listar todos os Dependentes
+      summary: List all Dependents
       responses:
         '200':
-          description: Sucesso.
+          description: Success.
           content:
             application/json:
               schema:
@@ -329,7 +329,7 @@ paths:
     get:
       tags:
         - Dependents
-      summary: Obter Dependente por ID
+      summary: Get Dependent by ID
       parameters:
         - name: dependent_id
           in: path
@@ -339,17 +339,17 @@ paths:
             format: mongoId
       responses:
         '200':
-          description: Sucesso.
+          description: Success.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dependent'
         '404':
-          description: Dependente não encontrado.
+          description: Dependent not found.
     patch:
       tags:
         - Dependents
-      summary: Atualizar um Dependente
+      summary: Update a Dependent
       parameters:
         - name: dependent_id
           in: path
@@ -365,17 +365,17 @@ paths:
               $ref: '#/components/schemas/DependentUpdate'
       responses:
         '200':
-          description: Sucesso.
+          description: Success.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dependent'
         '404':
-          description: Dependente não encontrado.
+          description: Dependent not found.
     delete:
       tags:
         - Dependents
-      summary: Remover um Dependente
+      summary: Remove a Dependent
       parameters:
         - name: dependent_id
           in: path
@@ -385,18 +385,18 @@ paths:
             format: mongoId
       responses:
         '204':
-          description: Dependente removido com sucesso.
+          description: Dependent removed successfully.
         '404':
-          description: Dependente não encontrado.
+          description: Dependent not found.
 
   /v1/users:
     get:
       tags:
         - Users
-      summary: Listar todos os Usuários
+      summary: List all Users
       responses:
         '200':
-          description: Sucesso.
+          description: Success.
           content:
             application/json:
               schema:
@@ -408,7 +408,7 @@ paths:
     delete:
       tags:
         - Users
-      summary: Remover um Usuário
+      summary: Remove a User
       parameters:
         - name: user_id
           in: path
@@ -418,15 +418,15 @@ paths:
             format: mongoId
       responses:
         '204':
-          description: Usuário removido com sucesso.
+          description: User removed successfully.
         '404':
-          description: Usuário não encontrado.
+          description: User not found.
 
   /v1/users/{user_id}/avatar:
     put:
       tags:
         - Users
-      summary: Adicionar ou atualizar avatar do usuário
+      summary: Add or update user avatar
       parameters:
         - name: user_id
           in: path
@@ -445,7 +445,7 @@ paths:
                   format: binary
       responses:
         '201':
-          description: Avatar salvo com sucesso.
+          description: Avatar saved successfully.
           content:
             application/json:
               schema:
@@ -453,7 +453,7 @@ paths:
     get:
       tags:
         - Users
-      summary: Obter avatar do usuário
+      summary: Get user avatar
       parameters:
         - name: user_id
           in: path
@@ -463,18 +463,18 @@ paths:
             format: mongoId
       responses:
         '200':
-          description: Sucesso.
+          description: Success.
           content:
             image/*:
               schema:
                 type: string
                 format: binary
         '404':
-          description: Avatar não encontrado.
+          description: Avatar not found.
     delete:
       tags:
         - Users
-      summary: Remover avatar do usuário
+      summary: Remove user avatar
       parameters:
         - name: user_id
           in: path
@@ -484,13 +484,13 @@ paths:
             format: mongoId
       responses:
         '204':
-          description: Avatar removido com sucesso.
+          description: Avatar removed successfully.
 
   /v1/auth:
     post:
       tags:
         - Auth
-      summary: Autenticar usuário
+      summary: Authenticate user
       requestBody:
         required: true
         content:
@@ -499,19 +499,19 @@ paths:
               $ref: '#/components/schemas/Credentials'
       responses:
         '200':
-          description: Autenticação bem-sucedida.
+          description: Authentication successful.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Auth'
         '401':
-          description: Não autorizado.
+          description: Unauthorized.
 
   /v1/auth/refresh:
     post:
       tags:
         - Auth
-      summary: Renovar token de acesso
+      summary: Refresh access token
       requestBody:
         required: true
         content:
@@ -525,19 +525,19 @@ paths:
                   type: string
       responses:
         '200':
-          description: Token renovado com sucesso.
+          description: Token refreshed successfully.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Auth'
         '401':
-          description: Token inválido.
+          description: Invalid token.
 
   /v1/auth/forgot:
     post:
       tags:
         - Auth
-      summary: Solicitar recuperação de senha
+      summary: Request password recovery
       requestBody:
         required: true
         content:
@@ -550,14 +550,14 @@ paths:
                   format: email
       responses:
         '226':
-          description: Se uma conta correspondente for encontrada, um email será enviado.
+          description: If a matching account is found, an email will be sent.
 
   /v1/auth/password:
     patch:
       tags:
         - Auth
-      summary: Alterar senha do usuário
-      description: Altera a senha usando a senha antiga ou um token de reset.
+      summary: Change user password
+      description: Changes the password using the old password or a reset token.
       security:
         - bearerAuth: []
       requestBody:
@@ -576,9 +576,9 @@ paths:
                   type: string
       responses:
         '204':
-          description: Senha alterada com sucesso.
+          description: Password changed successfully.
         '400':
-          description: Requisição inválida.
+          description: Invalid request.
 
 components:
   securitySchemes:
@@ -597,7 +597,7 @@ components:
           readOnly: true
         name:
           type: string
-          example: "João da Silva"
+          example: "John Doe"
         birth_date:
           type: string
           format: date
@@ -718,13 +718,12 @@ components:
           type: string
           format: uri
 
-    # Schemas para Entradas (Request Bodies)
     UserInput:
       type: object
       properties:
         name:
           type: string
-          example: "Maria Souza"
+          example: "Mary Smith"
         birth_date:
           type: string
           format: date
@@ -772,7 +771,6 @@ components:
           required:
             - address
 
-    # Schemas para Atualizações (PATCH Bodies)
     AdminUpdate:
       type: object
       properties:
