@@ -35,9 +35,9 @@ string_mask         = utf8only
 countryName                    = BR
 stateOrProvinceName            = PB
 localityName                   = Campina Grande
-organizationName               = SSM
-organizationalUnitName         = SSM
-commonName                     = SSM CA
+organizationName               = DS
+organizationalUnitName         = DS
+commonName                     = DS CA
 
 ####################################################################
 [ ca_extensions ]
@@ -90,7 +90,7 @@ EOF
 openssl req -x509 \
   -config "$DIR/openssl.cnf" \
   -nodes -days 3650 \
-  -subj "/O=SSM,CN=SSM CA" \
+  -subj "/O=DS,CN=DS CA" \
   -keyout "$DIR/ca.key" \
   -out "$DIR/ca.pem" 2>/dev/null
 
@@ -122,7 +122,7 @@ generateCerts() {
   openssl req \
     -new -nodes \
     -key "$DIR/$4_key.pem" \
-    -subj "/O=$ORG/CN=SSM" \
+    -subj "/O=$ORG/CN=DS" \
     -out "$DIR/$4.csr" 2>/dev/null
 
   # Sign the CSR with our CA. This will generate a new certificate that is signed

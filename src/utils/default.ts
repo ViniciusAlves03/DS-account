@@ -1,15 +1,15 @@
 export abstract class Default {
-    public static readonly APP_ID: string = 'expenses.app'
+    public static readonly APP_ID: string = 'ds-account.app'
     public static readonly NODE_ENV: string = 'development'
-    public static readonly PORT_HTTP: number = 11000
-    public static readonly PORT_HTTPS: number = 11001
+    public static readonly PORT_HTTP: number = 3000
+    public static readonly PORT_HTTPS: number = 3001
     public static readonly SWAGGER_VERSION: string = '1.0.0'
     public static readonly SWAGGER_PATH: string = `./src/ui/swagger/api_${Default.SWAGGER_VERSION}.yaml`
     public static readonly LOGO_URI: string = ''
 
     // MongoDB
-    public static readonly MONGODB_URI: string = 'mongodb://localhost:27017/expensesDB'
-    public static readonly MONGODB_URI_TEST: string = 'mongodb://localhost:27017/expensesDB'
+    public static readonly MONGODB_URI: string = 'mongodb://localhost:27017/ds-account'
+    public static readonly MONGODB_URI_TEST: string = 'mongodb://localhost:27017/ds-account-test'
 
     // RabbitMQ
     public static readonly RABBITMQ_RPC_TIMEOUT: number = 15000
