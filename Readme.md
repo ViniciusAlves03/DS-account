@@ -113,7 +113,7 @@ Este método exige que você tenha instâncias do **MongoDB** e **RabbitMQ** ins
 
 1.  **Clone o repositório:**
     ```bash
-    git clone [https://github.com/ViniciusAlves03/DS-account.git](https://github.com/ViniciusAlves03/DS-account.git)
+    git clone https://github.com/ViniciusAlves03/DS-account.git
     cd DS-account
     ```
 
