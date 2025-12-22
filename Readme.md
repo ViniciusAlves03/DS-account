@@ -70,14 +70,14 @@ Este método é o mais simples, pois usa o Dockerfile para executar a aplicaçã
 
 1.  **Clone o repositório:**
     ```bash
-    git clone [https://github.com/ViniciusAlves03/DS-account.git](https://github.com/ViniciusAlves03/DS-account.git)
+    git clone https://github.com/ViniciusAlves03/DS-account.git
     cd DS-account
     ```
 
 2.  **Inicie os serviços (Mongo e RabbitMQ):**
     Use o arquivo `docker-compose.yml` para iniciar os containers das dependências em background.
     ```bash
-    docker-compose up -d
+    docker-compose up -d --build
     ```
     * MongoDB estará disponível em: `localhost:27017`
     * RabbitMQ (admin) estará disponível em: `http://localhost:15672`
